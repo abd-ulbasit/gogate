@@ -117,10 +117,11 @@ func NewTCPProxy(listenAddr string, lb loadbalancer.LoadBalancer, logger *slog.L
 		done:       make(chan struct{}),
 	}
 	// Initialize buffer pool for copy operations (Milestone 7)
+	// Using *[]byte to avoid allocations in type assertion (SA6002)
 	p.bufPool = sync.Pool{New: func() any {
 		// Allocate 32KB buffers (same size used by io.Copy internally)
 		b := make([]byte, 32*1024)
-		return b
+		return &b
 	}}
 	for _, opt := range opts {
 		opt(p)
@@ -479,12 +480,13 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 //
 // Returns bytes copied and any error (EOF/closed errors are normalized to nil).
 func (p *TCPProxy) copyWithHalfCloseAndCount(dst, src net.Conn, direction string) (int64, error) {
-	// Get buffer from pool - New() guarantees non-nil []byte
-	buf := p.bufPool.Get().([]byte)
+	// Get buffer from pool - New() guarantees non-nil *[]byte
+	bufPtr := p.bufPool.Get().(*[]byte)
+	buf := *bufPtr
 	defer func() {
 		// Reset slice to full capacity before returning to pool
-		buf = buf[:cap(buf)]
-		p.bufPool.Put(buf)
+		*bufPtr = buf[:cap(buf)]
+		p.bufPool.Put(bufPtr)
 	}()
 
 	// Copy data using pooled buffer

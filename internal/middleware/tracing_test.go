@@ -30,6 +30,7 @@ func TestTracing(t *testing.T) {
 		trace := observability.TraceFromContext(r.Context())
 		if trace == nil {
 			t.Error("expected trace in context")
+			return
 		}
 		if trace.ID != requestID {
 			t.Errorf("trace ID mismatch: %s != %s", trace.ID, requestID)

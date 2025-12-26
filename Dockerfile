@@ -60,7 +60,7 @@ LABEL org.opencontainers.image.title="GoGate"
 LABEL org.opencontainers.image.description="L4/L7 Proxy & API Gateway with Service Discovery"
 LABEL org.opencontainers.image.url="https://github.com/abd-ulbasit/gogate"
 LABEL org.opencontainers.image.source="https://github.com/abd-ulbasit/gogate"
-LABEL org.opencontainers.image.vendor="Basit Ali"
+LABEL org.opencontainers.image.vendor="abd-ulbasit"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Copy timezone data and CA certificates for HTTPS

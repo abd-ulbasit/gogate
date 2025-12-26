@@ -5,7 +5,7 @@ bin/
 *.dll
 *.so
 *.dylib
-gogate
+/gogate
 
 # Test binary
 *.test
