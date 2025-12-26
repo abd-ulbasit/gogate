@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gogate.fullname" . }}
+  labels:
+    {{- include "gogate.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: tcp-proxy
+      port: {{ .Values.service.tcp.port }}
+      targetPort: tcp-proxy
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.tcp.nodePort }}
+      nodePort: {{ .Values.service.tcp.nodePort }}
+      {{- end }}
+    - name: http-proxy
+      port: {{ .Values.service.http.port }}
+      targetPort: http-proxy
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.http.nodePort }}
+      nodePort: {{ .Values.service.http.nodePort }}
+      {{- end }}
+    - name: admin
+      port: {{ .Values.service.admin.port }}
+      targetPort: admin
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.admin.nodePort }}
+      nodePort: {{ .Values.service.admin.nodePort }}
+      {{- end }}
+    - name: metrics
+      port: {{ .Values.service.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.metrics.nodePort }}
+      nodePort: {{ .Values.service.metrics.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "gogate.selectorLabels" . | nindent 4 }}

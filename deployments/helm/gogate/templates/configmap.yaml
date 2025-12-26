@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gogate.fullname" . }}-config
+  labels:
+    {{- include "gogate.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    server:
+      listenAddr: ":8080"
+      httpListenAddr: ":8081"
+      
+      backends:
+        {{- range .Values.backends }}
+        - addr: {{ .addr | quote }}
+          {{- if .weight }}
+          weight: {{ .weight }}
+          {{- end }}
+        {{- end }}
+      
+      loadBalancer: {{ .Values.config.loadBalancer.algorithm | quote }}
+      
+      health:
+        interval: {{ .Values.config.health.interval | quote }}
+        timeout: {{ .Values.config.health.timeout | quote }}
+        unhealthyThreshold: {{ .Values.config.health.unhealthyThreshold }}
+        healthyThreshold: {{ .Values.config.health.healthyThreshold }}
+        checkType: {{ .Values.config.health.checkType | quote }}
+      
+      rateLimit:
+        enabled: {{ .Values.config.rateLimit.enabled }}
+        rate: {{ .Values.config.rateLimit.rate }}
+        burst: {{ .Values.config.rateLimit.burst }}
+      
+      circuitBreaker:
+        enabled: {{ .Values.config.circuitBreaker.enabled }}
+        failureThreshold: {{ .Values.config.circuitBreaker.failureThreshold }}
+        successThreshold: {{ .Values.config.circuitBreaker.successThreshold }}
+        timeout: {{ .Values.config.circuitBreaker.timeout | quote }}
+      
+      admin:
+        enabled: true
+        listenAddr: ":9090"
+      
+      metrics:
+        enabled: true
+        listenAddr: ":9091"
+      
+      tcpPool:
+        enabled: {{ .Values.config.tcpPool.enabled }}
+        maxIdle: {{ .Values.config.tcpPool.maxIdle }}
+        idleTimeout: {{ .Values.config.tcpPool.idleTimeout | quote }}
+        maxLifetime: {{ .Values.config.tcpPool.maxLifetime | quote }}
+    
+    logging:
+      level: {{ .Values.config.logLevel | quote }}
+      format: {{ .Values.config.logFormat | quote }}

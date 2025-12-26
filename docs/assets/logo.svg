@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ADD8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#007D9C;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5DC9E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00ADD8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="url(#grad1)"/>
+  
+  <!-- Gate/Portal shape -->
+  <path d="M 50 140 L 50 70 Q 50 50 70 50 L 130 50 Q 150 50 150 70 L 150 140" 
+        stroke="white" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- Traffic flow arrows -->
+  <g fill="white" opacity="0.9">
+    <!-- Left arrow (incoming) -->
+    <path d="M 30 100 L 50 90 L 50 95 L 70 95 L 70 105 L 50 105 L 50 110 Z"/>
+    
+    <!-- Right arrows (outgoing - multiple backends) -->
+    <path d="M 130 85 L 130 80 L 150 90 L 130 100 L 130 95 L 110 95 L 110 85 Z" opacity="0.9"/>
+    <path d="M 130 105 L 130 100 L 150 110 L 130 120 L 130 115 L 110 115 L 110 105 Z" opacity="0.7"/>
+    <path d="M 130 125 L 130 120 L 150 130 L 130 140 L 130 135 L 110 135 L 110 125 Z" opacity="0.5"/>
+  </g>
+  
+  <!-- Central "G" -->
+  <text x="100" y="115" font-family="Arial, sans-serif" font-size="48" font-weight="bold" 
+        fill="white" text-anchor="middle">G</text>
+</svg>
