@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # GoGate API Gateway
+  gogate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"   # Main proxy (both L4 and L7)
+      - "9091:9091"   # Admin API (metrics, stats)
+    environment:
+      - CONFIG_PATH=/etc/gogate/config.yaml
+    volumes:
+      - ./config.docker.yaml:/etc/gogate/config.yaml
+    depends_on:
+      - backend-1
+      - backend-2
+    networks:
+      - gogate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  # Sample backend services
+  backend-1:
+    image: kennethreitz/httpbin
+    ports:
+      - "8001:80"
+    networks:
+      - gogate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status/200"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  backend-2:
+    image: kennethreitz/httpbin
+    ports:
+      - "8002:80"
+    networks:
+      - gogate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status/200"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  # Prometheus - metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployments/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - gogate
+    depends_on:
+      - gogate
+
+  # Grafana - visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deployments/grafana/provisioning/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./deployments/grafana/provisioning/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - gogate
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  gogate:
+    driver: bridge

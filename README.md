@@ -411,8 +411,6 @@ go build -o bin/gogate ./cmd/gogate
 ./bin/gogate -config config.yaml
 ```
 
-See [README.dev.md](README.dev.md) for detailed development notes and milestone progress.
-
 ## Project Structure
 
 ```

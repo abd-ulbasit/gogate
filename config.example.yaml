@@ -5,20 +5,11 @@
 
 # Server listeners
 server:
-  # L4 TCP proxy listener
-  tcpListen: ":8080"
+  # Main proxy listener (both L4 TCP and L7 HTTP)
+  listen: ":8080"
   
-  # L7 HTTP proxy listener  
-  httpListen: ":8081"
-  
-  # Admin API (config updates, health, metrics)
-  adminListen: ":9090"
-
-# Logging configuration
-logging:
-  # Log level: debug, info, warn, error
-  level: "info"
-  
+  # Logging configuration
+  logging:  
   # Log format: json, text
   format: "json"
 

@@ -28,8 +28,8 @@ const requestCounter = new Counter('total_requests');
 const backendDistribution = new Counter('backend_hits');
 
 // Configuration
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8081';
-const ADMIN_URL = __ENV.ADMIN_URL || 'http://localhost:9090';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const ADMIN_URL = __ENV.ADMIN_URL || 'http://localhost:9091';
 
 // Scenarios
 export const options = {
