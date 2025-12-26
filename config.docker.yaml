@@ -1,0 +1,66 @@
+server:
+  # Listen address for proxy
+  listen: ":8080"
+  
+  # Load balancing algorithm: round_robin, weighted_round_robin, least_connections
+  load_balancer: "round_robin"
+  
+  # Backends to proxy to
+  backends:
+    - addr: "backend-1:80"
+      weight: 1
+    - addr: "backend-2:80"
+      weight: 1
+  
+  # Health checking
+  health:
+    enabled: true
+    interval: "5s"
+    timeout: "2s"
+    unhealthy_threshold: 3
+    healthy_threshold: 2
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    rps: 1000  # Requests per second
+    burst: 50
+  
+  # Circuit breaker
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5  # Failures before opening
+    success_threshold: 2  # Successes before closing
+    timeout: "30s"        # Time in open state
+  
+  # Admin API for metrics
+  admin:
+    enabled: true
+    listen: ":9091"
+  
+  # TCP connection pooling
+  tcp_pool:
+    enabled: true
+    max_idle: 100
+    idle_timeout: "30s"
+  
+  # HTTP transport settings
+  http_transport:
+    max_idle_connections: 100
+    max_idle_per_host: 10
+    timeout: "10s"
+  
+  # Service registry (optional, not used in this example)
+  registry:
+    enabled: false
+  
+  # Logging
+  logging:
+    level: "info"
+    format: "json"
+    add_source: false
+  
+  # Metrics (Prometheus)
+  metrics:
+    enabled: true
+    path: "/metrics"
