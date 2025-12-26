@@ -29,9 +29,10 @@ builds:
 
 archives:
   - id: gogate
-    formats:
-      - tar.gz
-      - zip
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -46,7 +47,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  version_template: "{{ incpatch .Version }}-next"
+  name_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -93,6 +94,5 @@ docker_manifests:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}-arm64"
 
 release:
-  github:
   draft: false
   prerelease: auto
