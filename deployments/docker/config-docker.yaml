@@ -1,0 +1,69 @@
+# GoGate Docker Configuration
+# This config is used by docker-compose
+
+server:
+  listenAddr: ":8080"
+  httpListenAddr: ":8081"
+  
+  # Backends (container hostnames)
+  backends:
+    - addr: "backend1:8080"
+      weight: 3
+    - addr: "backend2:8080"
+      weight: 3
+    - addr: "backend3:8080"
+      weight: 1    # Canary: ~14% traffic
+  
+  # Load balancing algorithm: round_robin, weighted_round_robin, least_connections
+  loadBalancer: "weighted_round_robin"
+  
+  # Health check configuration
+  health:
+    interval: 5s
+    timeout: 2s
+    unhealthyThreshold: 3
+    healthyThreshold: 2
+    checkType: "http"
+    httpPath: "/"
+  
+  # Rate limiting
+  rateLimit:
+    enabled: true
+    rate: 1000
+    burst: 100
+  
+  # Circuit breaker
+  circuitBreaker:
+    enabled: true
+    failureThreshold: 5
+    successThreshold: 2
+    timeout: 30s
+    window: 60s
+  
+  # Admin server
+  admin:
+    enabled: true
+    listenAddr: ":9090"
+  
+  # Prometheus metrics
+  metrics:
+    enabled: true
+    listenAddr: ":9091"
+  
+  # Service registry
+  registry:
+    enabled: false
+    ttl: 30s
+    cleanupInterval: 10s
+  
+  # Connection pooling
+  tcpPool:
+    enabled: true
+    maxIdle: 10
+    idleTimeout: 60s
+    maxLifetime: 300s
+
+logging:
+  level: "info"
+  format: "json"
+  addSource: false

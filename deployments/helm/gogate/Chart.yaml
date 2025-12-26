@@ -1,0 +1,20 @@
+apiVersion: v2
+name: gogate
+description: L4/L7 Proxy & API Gateway with Service Discovery
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - proxy
+  - gateway
+  - load-balancer
+  - api-gateway
+  - tcp-proxy
+maintainers:
+  - name: Basit Ali
+    email: basit@example.com
+home: https://github.com/abd-ulbasit/gogate
+sources:
+  - https://github.com/abd-ulbasit/gogate
+annotations:
+  category: Infrastructure

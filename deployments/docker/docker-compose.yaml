@@ -1,0 +1,119 @@
+# =============================================================================
+# GoGate Local Development Stack
+# =============================================================================
+# Usage:
+#   docker-compose up -d              # Start all services
+#   docker-compose up -d --build      # Rebuild and start
+#   docker-compose logs -f gogate     # Follow gogate logs
+#   docker-compose down               # Stop all services
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # GoGate Proxy
+  # ---------------------------------------------------------------------------
+  gogate:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: gogate:local
+    container_name: gogate
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # L4 TCP proxy
+      - "8081:8081"   # L7 HTTP proxy
+      - "9090:9090"   # Admin API
+      - "9091:9091"   # Prometheus metrics
+    volumes:
+      - ./config-docker.yaml:/etc/gogate/config.yaml:ro
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      - backend1
+      - backend2
+    networks:
+      - gogate-net
+
+  # ---------------------------------------------------------------------------
+  # Backend Services (for demo/testing)
+  # ---------------------------------------------------------------------------
+  backend1:
+    image: hashicorp/http-echo:latest
+    container_name: backend1
+    command: ["-text=Backend 1", "-listen=:8080"]
+    ports:
+      - "9001:8080"
+    networks:
+      - gogate-net
+
+  backend2:
+    image: hashicorp/http-echo:latest
+    container_name: backend2
+    command: ["-text=Backend 2", "-listen=:8080"]
+    ports:
+      - "9002:8080"
+    networks:
+      - gogate-net
+
+  backend3:
+    image: hashicorp/http-echo:latest
+    container_name: backend3
+    command: ["-text=Backend 3 (Canary)", "-listen=:8080"]
+    ports:
+      - "9003:8080"
+    networks:
+      - gogate-net
+
+  # ---------------------------------------------------------------------------
+  # Observability Stack
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9092:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - gogate-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - gogate-net
+
+networks:
+  gogate-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

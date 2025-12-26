@@ -1,0 +1,65 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+gogate
+
+# Test binary
+*.test
+
+# Output of go coverage tool
+*.out
+coverage.html
+coverage.txt
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config (use config.example.yaml as template)
+config.yaml
+!config.example.yaml
+
+# k6 output
+k6/*.json
+k6/summary.json
+
+# Build artifacts
+dist/
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Secrets (should never be committed)
+*.pem
+*.key
+secrets/
+.env
+.env.*
+!.env.example
+
+# Memory bank (development notes)
+memory-bank/
+
+# Debug
+__debug_bin*

@@ -1,0 +1,168 @@
+# GoGate Configuration Schema
+
+# This is the full configuration reference.
+# Copy this file to config.yaml and customize.
+
+# Server listeners
+server:
+  # L4 TCP proxy listener
+  tcpListen: ":8080"
+  
+  # L7 HTTP proxy listener  
+  httpListen: ":8081"
+  
+  # Admin API (config updates, health, metrics)
+  adminListen: ":9090"
+
+# Logging configuration
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  
+  # Log format: json, text
+  format: "json"
+
+# Service registry settings
+registry:
+  # How long a service registration is valid without heartbeat
+  ttl: "30s"
+  
+  # How often to check for expired registrations
+  cleanupInterval: "10s"
+
+# Static backend definitions (alternative to service discovery)
+backends:
+  # Backend group name
+  api-v1:
+    # List of backend addresses
+    addresses:
+      - "localhost:9001"
+      - "localhost:9002"
+    
+    # Optional weight for weighted load balancing
+    weight: 3
+    
+    # Health check configuration
+    healthCheck:
+      # Type: tcp, http
+      type: "http"
+      
+      # For HTTP health checks
+      path: "/health"
+      
+      # Check interval
+      interval: "10s"
+      
+      # Timeout per check
+      timeout: "2s"
+      
+      # Failures before marking unhealthy
+      unhealthyThreshold: 3
+      
+      # Successes before marking healthy again
+      healthyThreshold: 2
+
+  api-v2:
+    addresses:
+      - "localhost:9003"
+    tags:
+      - "canary"
+      - "v2"
+
+# L7 HTTP routes
+routes:
+  # Route name (for metrics/logging)
+  - name: "api-route"
+    
+    # Match conditions
+    match:
+      # Match by host header (optional)
+      host: "api.example.com"
+      
+      # Match by path prefix (optional)
+      pathPrefix: "/api"
+      
+      # Match by exact path (optional, mutually exclusive with pathPrefix)
+      # path: "/api/v1/health"
+      
+      # Match by headers (optional)
+      headers:
+        x-api-version: "2"
+    
+    # Backend(s) to route to
+    backends:
+      - name: "api-v1"
+        weight: 90
+      - name: "api-v2"
+        weight: 10
+    
+    # Load balancing algorithm: round-robin, least-connections, random
+    loadBalancer: "round-robin"
+    
+    # Middleware chain (executed in order)
+    middleware:
+      # Rate limiting
+      - rateLimit:
+          # Requests allowed per window
+          requests: 1000
+          # Time window
+          window: "1m"
+          # Optional: per-client limit (by IP or header)
+          keyBy: "ip"  # or "header:X-API-Key"
+      
+      # Authentication
+      - auth:
+          type: "jwt"
+          # JWKS URL for key verification
+          jwksUrl: "https://auth.example.com/.well-known/jwks.json"
+          # Expected issuer
+          issuer: "https://auth.example.com"
+          # Expected audience (optional)
+          audience: "api.example.com"
+      
+      # Circuit breaker
+      - circuitBreaker:
+          # Failures in window before opening
+          threshold: 5
+          # Time window for counting failures
+          window: "1m"
+          # Time to wait before half-open
+          timeout: "30s"
+      
+      # Retry policy
+      - retry:
+          attempts: 3
+          backoff: "exponential"
+          initialInterval: "100ms"
+          maxInterval: "2s"
+      
+      # Timeout
+      - timeout:
+          request: "30s"
+          idle: "60s"
+
+  # TCP passthrough route (L4)
+  - name: "postgres-proxy"
+    type: "tcp"
+    listen: ":5432"
+    backend: "postgres-pool"
+    loadBalancer: "least-connections"
+
+# Connection pool settings
+connectionPool:
+  # Max idle connections per backend
+  maxIdleConns: 100
+  
+  # Max total connections per backend
+  maxConns: 1000
+  
+  # Idle timeout before closing
+  idleTimeout: "90s"
+
+# Buffer pool settings (for sync.Pool)
+bufferPool:
+  # Initial buffer size
+  bufferSize: 32768  # 32KB
+  
+  # Max buffer size before discarding
+  maxBufferSize: 1048576  # 1MB
