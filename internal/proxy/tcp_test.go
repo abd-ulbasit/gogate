@@ -1006,7 +1006,11 @@ func mustStartEchoServer() net.Listener {
 // allocations/op differences when using sync.Pool-backed buffers vs fresh
 // allocations each call.
 
-var benchCopyBufPool = sync.Pool{New: func() any { return make([]byte, 32*1024) }}
+// Using *[]byte to avoid allocations in type assertion (SA6002)
+var benchCopyBufPool = sync.Pool{New: func() any {
+	b := make([]byte, 32*1024)
+	return &b
+}}
 
 func BenchmarkCopyBufferWithPool(b *testing.B) {
 	benchmarkCopyBuffer(b, true)
@@ -1024,8 +1028,10 @@ func benchmarkCopyBuffer(b *testing.B, pooled bool) {
 	for i := 0; i < b.N; i++ {
 		reader := bytes.NewReader(payload)
 		var buf []byte
+		var bufPtr *[]byte
 		if pooled {
-			buf = benchCopyBufPool.Get().([]byte)
+			bufPtr = benchCopyBufPool.Get().(*[]byte)
+			buf = *bufPtr
 		} else {
 			buf = make([]byte, 32*1024)
 		}
@@ -1034,10 +1040,10 @@ func benchmarkCopyBuffer(b *testing.B, pooled bool) {
 			b.Fatalf("copy failed: %v", err)
 		}
 
-		if pooled {
+		if pooled && bufPtr != nil {
 			// Reset slice length before returning to pool
-			buf = buf[:cap(buf)]
-			benchCopyBufPool.Put(buf)
+			*bufPtr = buf[:cap(buf)]
+			benchCopyBufPool.Put(bufPtr)
 		}
 	}
 }
