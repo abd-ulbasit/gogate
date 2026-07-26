@@ -45,7 +45,7 @@ This guide walks you through running a comprehensive load test of the gogate API
 ### 1. Start the Full Stack
 
 ```bash
-cd /Users/basit/projects/learning-go-v1/gogate
+cd gogate
 
 # Build and run all services
 docker compose up
@@ -77,7 +77,7 @@ The dashboard auto-refreshes every 5 seconds and shows:
 Open another terminal:
 
 ```bash
-cd /Users/basit/projects/learning-go-v1/gogate/k6
+cd k6
 
 # Run steady-state load test (1000 req/s for 3 minutes)
 k6 run load-test.js
