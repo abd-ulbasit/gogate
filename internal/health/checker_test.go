@@ -236,7 +236,12 @@ func TestHTTPCheckNormalizesPath(t *testing.T) {
 // http.Client per probe would drop the connection pool every interval.
 func TestHTTPCheckReusesOneClient(t *testing.T) {
 	c := NewChecker(nil, slog.New(slog.NewTextHandler(io.Discard, nil)), DefaultCheckerConfig())
-	if c.httpClient() != c.httpClient() {
+	first := c.httpClient()
+	second := c.httpClient()
+	if first != second {
 		t.Error("httpClient() returned a different client on the second call")
+	}
+	if first.Transport == nil {
+		t.Error("httpClient() has no transport; every probe would use DefaultTransport's pool")
 	}
 }
