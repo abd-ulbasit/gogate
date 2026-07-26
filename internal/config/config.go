@@ -16,8 +16,15 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	// ListenAddr is the address to listen on (e.g., ":8080")
+	// ListenAddr is the L4 (raw TCP) listener address, e.g. ":8080".
+	// Bytes are copied between client and backend without being parsed.
 	ListenAddr string `yaml:"listen"`
+
+	// HTTPListenAddr is the L7 (HTTP) listener address, e.g. ":8081".
+	// Requests here go through the middleware chain and are re-issued to the
+	// backend as new HTTP requests. Empty disables the L7 listener; the two
+	// layers share the same backend pool, load balancer and health checker.
+	HTTPListenAddr string `yaml:"http_listen"`
 
 	// Backends is the list of backend servers to load balance across
 	Backends []BackendConfig `yaml:"backends"`

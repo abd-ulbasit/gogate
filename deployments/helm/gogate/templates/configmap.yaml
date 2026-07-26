@@ -5,11 +5,15 @@ metadata:
   labels:
     {{- include "gogate.labels" . | nindent 4 }}
 data:
+  # Key names must match the yaml tags in internal/config/config.go. The loader
+  # ignores keys it does not recognise, so a misspelling here yields a pod that
+  # starts cleanly with the feature switched off. internal/config's
+  # TestHelmConfigMapKeysMatchSchema guards this template against that drift.
   config.yaml: |
     server:
-      listenAddr: ":8080"
-      httpListenAddr: ":8081"
-      
+      listen: ":8080"
+      http_listen: ":8081"
+
       backends:
         {{- range .Values.backends }}
         - addr: {{ .addr | quote }}
@@ -17,41 +21,44 @@ data:
           weight: {{ .weight }}
           {{- end }}
         {{- end }}
-      
-      loadBalancer: {{ .Values.config.loadBalancer.algorithm | quote }}
-      
+
+      load_balancer: {{ .Values.config.loadBalancer.algorithm | quote }}
+
       health:
         interval: {{ .Values.config.health.interval | quote }}
         timeout: {{ .Values.config.health.timeout | quote }}
-        unhealthyThreshold: {{ .Values.config.health.unhealthyThreshold }}
-        healthyThreshold: {{ .Values.config.health.healthyThreshold }}
-        checkType: {{ .Values.config.health.checkType | quote }}
-      
-      rateLimit:
+        unhealthy_threshold: {{ .Values.config.health.unhealthyThreshold }}
+        healthy_threshold: {{ .Values.config.health.healthyThreshold }}
+        check_type: {{ .Values.config.health.checkType | quote }}
+        http_path: {{ .Values.config.health.httpPath | default "/health" | quote }}
+
+      rate_limit:
         enabled: {{ .Values.config.rateLimit.enabled }}
         rate: {{ .Values.config.rateLimit.rate }}
         burst: {{ .Values.config.rateLimit.burst }}
-      
-      circuitBreaker:
+
+      circuit_breaker:
         enabled: {{ .Values.config.circuitBreaker.enabled }}
-        failureThreshold: {{ .Values.config.circuitBreaker.failureThreshold }}
-        successThreshold: {{ .Values.config.circuitBreaker.successThreshold }}
+        failure_threshold: {{ .Values.config.circuitBreaker.failureThreshold }}
+        success_threshold: {{ .Values.config.circuitBreaker.successThreshold }}
+        max_half_open_requests: {{ .Values.config.circuitBreaker.maxHalfOpenRequests | default .Values.config.circuitBreaker.successThreshold }}
         timeout: {{ .Values.config.circuitBreaker.timeout | quote }}
-      
+        window: {{ .Values.config.circuitBreaker.window | default "60s" | quote }}
+
       admin:
         enabled: true
-        listenAddr: ":9090"
-      
+        listen: ":9090"
+
       metrics:
         enabled: true
-        listenAddr: ":9091"
-      
-      tcpPool:
+        path: "/metrics"
+
+      tcp_pool:
         enabled: {{ .Values.config.tcpPool.enabled }}
-        maxIdle: {{ .Values.config.tcpPool.maxIdle }}
-        idleTimeout: {{ .Values.config.tcpPool.idleTimeout | quote }}
-        maxLifetime: {{ .Values.config.tcpPool.maxLifetime | quote }}
-    
-    logging:
-      level: {{ .Values.config.logLevel | quote }}
-      format: {{ .Values.config.logFormat | quote }}
+        max_idle: {{ .Values.config.tcpPool.maxIdle }}
+        idle_timeout: {{ .Values.config.tcpPool.idleTimeout | quote }}
+        max_lifetime: {{ .Values.config.tcpPool.maxLifetime | quote }}
+
+      logging:
+        level: {{ .Values.config.logLevel | quote }}
+        format: {{ .Values.config.logFormat | quote }}

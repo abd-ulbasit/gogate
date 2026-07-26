@@ -1,69 +1,66 @@
-# GoGate Docker Configuration
-# This config is used by docker-compose
+# GoGate configuration for the docker-compose stack in this directory.
+#
+# Key names must match the yaml tags in internal/config/config.go. Unrecognised
+# keys are silently ignored by the loader, so a camelCase spelling here starts
+# the container with the feature switched off; internal/config tests assert this
+# file parses into a config with the features below actually enabled.
 
 server:
-  listenAddr: ":8080"
-  httpListenAddr: ":8081"
-  
-  # Backends (container hostnames)
+  # L4: raw TCP passthrough
+  listen: ":8080"
+  # L7: HTTP with the middleware chain
+  http_listen: ":8081"
+
+  # Backends (container hostnames from docker-compose.yaml)
   backends:
     - addr: "backend1:8080"
       weight: 3
     - addr: "backend2:8080"
       weight: 3
     - addr: "backend3:8080"
-      weight: 1    # Canary: ~14% traffic
-  
-  # Load balancing algorithm: round_robin, weighted_round_robin, least_connections
-  loadBalancer: "weighted_round_robin"
-  
-  # Health check configuration
+      weight: 1    # canary: ~14% of traffic
+
+  load_balancer: "weighted_round_robin"
+
   health:
     interval: 5s
     timeout: 2s
-    unhealthyThreshold: 3
-    healthyThreshold: 2
-    checkType: "http"
-    httpPath: "/"
-  
-  # Rate limiting
-  rateLimit:
+    unhealthy_threshold: 3
+    healthy_threshold: 2
+    check_type: "http"
+    http_path: "/"
+
+  rate_limit:
     enabled: true
     rate: 1000
     burst: 100
-  
-  # Circuit breaker
-  circuitBreaker:
+
+  circuit_breaker:
     enabled: true
-    failureThreshold: 5
-    successThreshold: 2
+    failure_threshold: 5
+    success_threshold: 2
+    max_half_open_requests: 2
     timeout: 30s
     window: 60s
-  
-  # Admin server
+
   admin:
     enabled: true
-    listenAddr: ":9090"
-  
-  # Prometheus metrics
+    listen: ":9090"
+
   metrics:
     enabled: true
-    listenAddr: ":9091"
-  
-  # Service registry
+    path: "/metrics"
+
   registry:
     enabled: false
-    ttl: 30s
-    cleanupInterval: 10s
-  
-  # Connection pooling
-  tcpPool:
-    enabled: true
-    maxIdle: 10
-    idleTimeout: 60s
-    maxLifetime: 300s
 
-logging:
-  level: "info"
-  format: "json"
-  addSource: false
+  tcp_pool:
+    enabled: true
+    max_idle: 10
+    idle_timeout: 60s
+    max_lifetime: 300s
+
+  logging:
+    level: "info"
+    format: "json"
+    add_source: false

@@ -310,6 +310,27 @@ func (p *HTTPProxy) ActiveRequests() int64 {
 	return p.activeRequests.Load()
 }
 
+// CircuitBreakerStates returns the current state of every per-backend circuit
+// breaker, keyed by backend address (0=closed, 1=open, 2=half-open).
+//
+// Returns nil when circuit breakers are disabled. The L4 and L7 listeners keep
+// separate breaker instances for the same backend on purpose: a backend can be
+// answering raw TCP while returning 502s over HTTP, and one layer's failures
+// should not trip the other's.
+func (p *HTTPProxy) CircuitBreakerStates() map[string]int {
+	if p.circuitBreakers == nil {
+		return nil
+	}
+	p.cbMu.RLock()
+	defer p.cbMu.RUnlock()
+
+	states := make(map[string]int, len(p.circuitBreakers))
+	for addr, cb := range p.circuitBreakers {
+		states[addr] = int(cb.State())
+	}
+	return states
+}
+
 // DefaultTransport returns a pre-configured http.Transport suitable for proxying.
 //
 // Configuration:

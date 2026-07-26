@@ -511,6 +511,25 @@ func (p *TCPProxy) ActiveConnections() int64 {
 	return p.activeConns.Load()
 }
 
+// CircuitBreakerStates returns the current state of every per-backend circuit
+// breaker, keyed by backend address (0=closed, 1=open, 2=half-open).
+//
+// Returns nil when circuit breakers are disabled. Breakers are created lazily on
+// first use, so a backend that has never been dialled will not appear here.
+func (p *TCPProxy) CircuitBreakerStates() map[string]int {
+	if p.circuitBreakers == nil {
+		return nil
+	}
+	p.cbMu.RLock()
+	defer p.cbMu.RUnlock()
+
+	states := make(map[string]int, len(p.circuitBreakers))
+	for addr, cb := range p.circuitBreakers {
+		states[addr] = int(cb.State())
+	}
+	return states
+}
+
 // Notes for implementation:
 //
 // 1. Why two goroutines?

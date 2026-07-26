@@ -67,17 +67,28 @@ config:
   # Circuit breaker
   circuitBreaker:
     enabled: true
+    # -- Failures within `window` before the circuit opens
     failureThreshold: 5
+    # -- Probe successes in half-open before the circuit closes
     successThreshold: 2
+    # -- Probes admitted concurrently in half-open. Caps the load a recovering
+    # backend receives when `timeout` expires. Defaults to successThreshold.
+    maxHalfOpenRequests: 2
+    # -- How long to stay open before probing again
     timeout: "30s"
-  
+    # -- Rolling window for counting failures
+    window: "60s"
+
   # Health checks
   health:
     interval: "10s"
     timeout: "2s"
     unhealthyThreshold: 3
     healthyThreshold: 2
+    # -- tcp or http
     checkType: "tcp"
+    # -- Only used when checkType is http
+    httpPath: "/health"
   
   # Connection pooling
   tcpPool:

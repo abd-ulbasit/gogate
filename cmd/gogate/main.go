@@ -17,6 +17,7 @@ import (
 	"gogate/internal/health"
 	"gogate/internal/loadbalancer"
 	"gogate/internal/metrics"
+	"gogate/internal/middleware"
 	"gogate/internal/observability"
 	"gogate/internal/proxy"
 	"gogate/internal/ratelimiter"
@@ -53,6 +54,7 @@ func main() {
 
 	logger.Info("starting gogate",
 		"listen", cfg.Server.ListenAddr,
+		"http_listen", cfg.Server.HTTPListenAddr,
 		"backends", len(cfg.Server.Backends),
 		"lb", cfg.Server.LoadBalancer,
 		"rate_limit", cfg.Server.RateLimit.Enabled,
@@ -117,10 +119,13 @@ func main() {
 	metricsCollector := metrics.NewCollector()
 	proxyOpts = append(proxyOpts, proxy.WithMetrics(metricsCollector))
 
-	// Rate limiter (optional)
+	// Rate limiter (optional). The same token bucket instance is shared by the
+	// L4 and L7 listeners so the configured rate is a budget for the process,
+	// not per-layer.
+	var rateLimiter *ratelimiter.TokenBucket
 	if cfg.Server.RateLimit.Enabled {
-		rl := ratelimiter.NewTokenBucket(cfg.Server.RateLimit.Rate, cfg.Server.RateLimit.Burst)
-		proxyOpts = append(proxyOpts, proxy.WithRateLimiter(rl))
+		rateLimiter = ratelimiter.NewTokenBucket(cfg.Server.RateLimit.Rate, cfg.Server.RateLimit.Burst)
+		proxyOpts = append(proxyOpts, proxy.WithRateLimiter(rateLimiter))
 		logger.Info("rate limiter enabled",
 			"rate", cfg.Server.RateLimit.Rate,
 			"burst", cfg.Server.RateLimit.Burst,
@@ -128,8 +133,9 @@ func main() {
 	}
 
 	// Circuit breaker (optional)
+	var cbConfig circuitbreaker.Config
 	if cfg.Server.CircuitBreaker.Enabled {
-		cbConfig := circuitbreaker.Config{
+		cbConfig = circuitbreaker.Config{
 			FailureThreshold:    cfg.Server.CircuitBreaker.FailureThreshold,
 			SuccessThreshold:    cfg.Server.CircuitBreaker.SuccessThreshold,
 			MaxHalfOpenRequests: cfg.Server.CircuitBreaker.MaxHalfOpenRequests,
@@ -140,6 +146,7 @@ func main() {
 		logger.Info("circuit breaker enabled",
 			"failure_threshold", cbConfig.FailureThreshold,
 			"timeout", cbConfig.Timeout,
+			"max_half_open_requests", cbConfig.MaxHalfOpenRequests,
 		)
 	}
 
@@ -150,6 +157,15 @@ func main() {
 		logger,
 		proxyOpts...,
 	)
+
+	// Build the L7 listener (optional). L4 and L7 deliberately share the
+	// backend set, load balancer and health checker; they differ only in how
+	// far up the stack a request is inspected.
+	var httpServer *http.Server
+	var httpProxy *proxy.HTTPProxy
+	if cfg.Server.HTTPListenAddr != "" {
+		httpServer, httpProxy = buildHTTPServer(cfg, lb, logger, metricsCollector, rateLimiter, cbConfig)
+	}
 
 	// Set up graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -206,6 +222,31 @@ func main() {
 		}
 		return result
 	})
+
+	// Export circuit breaker state. Breakers are per-listener, so a backend can
+	// appear under both; the L7 view wins because it reflects application-level
+	// health rather than just whether the TCP connect succeeded.
+	promExporter.SetCircuitBreakerGetter(func() map[string]int {
+		states := tcpProxy.CircuitBreakerStates()
+		if states == nil {
+			states = make(map[string]int)
+		}
+		if httpProxy != nil {
+			for addr, state := range httpProxy.CircuitBreakerStates() {
+				states[addr] = state
+			}
+		}
+		return states
+	})
+
+	// Export rate limiter counters. Read from the token bucket rather than a
+	// middleware-side counter so L4 and L7 rejections are both included.
+	if rateLimiter != nil {
+		promExporter.SetRateLimiterStats(func() (allowed, rejected int64) {
+			s := rateLimiter.Stats()
+			return s.TotalAllowed, s.TotalDenied
+		})
+	}
 
 	// Set up pool stats getter for Prometheus
 	promExporter.SetPoolStatsGetter(func() map[string]metrics.PoolStatsSnapshot {
@@ -266,7 +307,18 @@ func main() {
 
 	// Wait until proxy is ready to accept connections
 	<-tcpProxy.Ready()
-	logger.Info("proxy ready, accepting connections")
+	logger.Info("L4 proxy ready, accepting connections", "listen", tcpProxy.Addr())
+
+	// Start the L7 listener (optional)
+	if httpServer != nil {
+		go func() {
+			logger.Info("L7 proxy ready, accepting requests", "listen", httpServer.Addr)
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Error("http proxy failed", "error", err)
+				cancel()
+			}
+		}()
+	}
 
 	// Wait for context cancellation (signal received)
 	<-ctx.Done()
@@ -275,6 +327,14 @@ func main() {
 	// Graceful shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
+
+	// Stop L7 listener first: it stops accepting new requests and drains
+	// in-flight ones before the backends underneath it go away.
+	if httpServer != nil {
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Warn("http proxy shutdown error", "error", err)
+		}
+	}
 
 	// Stop admin server
 	if adminServer != nil {
@@ -300,6 +360,76 @@ func main() {
 	checker.Stop()
 
 	logger.Info("shutdown complete")
+}
+
+// buildHTTPServer assembles the L7 listener: the HTTP reverse proxy wrapped in
+// the middleware chain.
+//
+// Middleware order matters and is not arbitrary:
+//
+//	Recovery  - outermost, so a panic anywhere below still returns a response
+//	Tracing   - assigns/propagates X-Request-ID, and emits the access log line
+//	            (its completion log already carries method, path, remote_addr,
+//	            status, bytes and duration, so a separate Logging middleware
+//	            here would only duplicate every line)
+//	Metrics   - inside Tracing, so it times the handler rather than the logging
+//	RateLimit - rejects before any per-backend work happens
+//	Headers   - X-Forwarded-For and friends, only for requests that survive
+//
+// Auth is deliberately absent from the default chain: the JWT validator needs a
+// key that this config schema does not carry yet, and a gateway that silently
+// authenticates nothing is worse than one that does not claim to.
+func buildHTTPServer(
+	cfg *config.Config,
+	lb loadbalancer.LoadBalancer,
+	logger *slog.Logger,
+	collector *metrics.Collector,
+	rl *ratelimiter.TokenBucket,
+	cbConfig circuitbreaker.Config,
+) (*http.Server, *proxy.HTTPProxy) {
+	httpOpts := []proxy.HTTPOption{
+		proxy.WithHTTPMetrics(collector),
+		proxy.WithHTTPTransportConfig(proxy.HTTPTransportConfig{
+			MaxIdleConns:          cfg.Server.HTTPTransport.MaxIdleConns,
+			MaxIdleConnsPerHost:   cfg.Server.HTTPTransport.MaxIdleConnsPerHost,
+			MaxConnsPerHost:       cfg.Server.HTTPTransport.MaxConnsPerHost,
+			IdleConnTimeout:       cfg.Server.HTTPTransport.IdleConnTimeout,
+			TLSHandshakeTimeout:   cfg.Server.HTTPTransport.TLSHandshakeTimeout,
+			ExpectContinueTimeout: cfg.Server.HTTPTransport.ExpectContinueTimeout,
+			DialTimeout:           cfg.Server.HTTPTransport.DialTimeout,
+			DialKeepAlive:         cfg.Server.HTTPTransport.DialKeepAlive,
+			DisableCompression:    cfg.Server.HTTPTransport.DisableCompression,
+		}),
+	}
+	if cfg.Server.CircuitBreaker.Enabled {
+		httpOpts = append(httpOpts, proxy.WithHTTPCircuitBreaker(cbConfig))
+	}
+
+	httpProxy := proxy.NewHTTPProxy(lb, logger, httpOpts...)
+
+	chain := []middleware.Middleware{
+		middleware.Recovery(logger),
+		middleware.Tracing(logger),
+		middleware.Metrics(collector),
+	}
+	if rl != nil {
+		// Plain RateLimit, not RateLimitWithMetrics: the token bucket is shared
+		// with the L4 listener and already counts allowed/denied for both, so a
+		// second L7-only counter would under-report.
+		chain = append(chain, middleware.RateLimit(rl))
+	}
+	chain = append(chain, middleware.Headers())
+
+	srv := &http.Server{
+		Addr:    cfg.Server.HTTPListenAddr,
+		Handler: middleware.Chain(httpProxy, chain...),
+		// A proxy must not impose a write deadline shorter than the slowest
+		// backend response it is willing to forward; ReadHeaderTimeout is the
+		// one that actually protects against slowloris.
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return srv, httpProxy
 }
 
 // AdminServerDeps holds dependencies for the admin server.
