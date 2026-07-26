@@ -22,8 +22,8 @@ capacity ceiling are unaffected by machine load and are reliable.
 ## Concurrent connection capacity
 
 ```
-GOGATE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
-GOGATE_CAPACITY=8000 GOGATE_CAPACITY_DIRECT=1 \
+SLUICE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
+SLUICE_CAPACITY=8000 SLUICE_CAPACITY_DIRECT=1 \
     go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
 ```
 
@@ -50,7 +50,7 @@ because client, proxy and backend all share one process and one heap:
 ### Where the 130 KB goes
 
 ```
-GOGATE_CAPACITY=3000 go test ./internal/proxy -run ConnectionCapacity \
+SLUICE_CAPACITY=3000 go test ./internal/proxy -run ConnectionCapacity \
     -memprofile cap.mem -memprofilerate=1
 go tool pprof -inuse_space -top -nodecount=12 cap.mem
 ```
@@ -58,7 +58,7 @@ go tool pprof -inuse_space -top -nodecount=12 cap.mem
 ```
 Showing nodes accounting for 198226.77kB, 99.81% of 198603.34kB total
       flat  flat%   sum%        cum   cum%
-192145.44kB 96.75% 96.75% 192145.44kB 96.75%  gogate/internal/proxy.NewTCPProxy.func1
+192145.44kB 96.75% 96.75% 192145.44kB 96.75%  sluice/internal/proxy.NewTCPProxy.func1
  6081.16kB  3.06% 99.81%  6081.16kB  3.06%  runtime.mallocgc
     0.17kB    ~   99.81% 192304.48kB 96.83%  ...(*TCPProxy).copyWithHalfCloseAndCount
          0     0% 99.81% 192151.41kB 96.75%  sync.(*Pool).Get
@@ -196,10 +196,10 @@ go test -race ./...
 go test ./internal/proxy -bench BenchmarkCopyBuffer -benchmem -benchtime=2s -count=3
 
 # Connection capacity (opens 4 file descriptors per connection)
-GOGATE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
+SLUICE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
 
 # Same load without the proxy, for the baseline to subtract
-GOGATE_CAPACITY=8000 GOGATE_CAPACITY_DIRECT=1 \
+SLUICE_CAPACITY=8000 SLUICE_CAPACITY_DIRECT=1 \
     go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
 ```
 

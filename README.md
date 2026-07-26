@@ -1,16 +1,16 @@
-<h1 align="center">GoGate</h1>
+<h1 align="center">Sluice</h1>
 
 <p align="center">
   <strong>An L4/L7 proxy and API gateway in Go, with no dependencies in the request path.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/abd-ulbasit/gogate/actions"><img src="https://github.com/abd-ulbasit/gogate/workflows/CI/badge.svg" alt="CI Status"></a>
-  <a href="https://goreportcard.com/report/github.com/abd-ulbasit/gogate"><img src="https://goreportcard.com/badge/github.com/abd-ulbasit/gogate" alt="Go Report Card"></a>
+  <a href="https://github.com/abd-ulbasit/sluice/actions"><img src="https://github.com/abd-ulbasit/sluice/workflows/CI/badge.svg" alt="CI Status"></a>
+  <a href="https://goreportcard.com/report/github.com/abd-ulbasit/sluice"><img src="https://goreportcard.com/badge/github.com/abd-ulbasit/sluice" alt="Go Report Card"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
-GoGate runs two listeners over one backend pool. The L4 listener copies raw TCP
+Sluice runs two listeners over one backend pool. The L4 listener copies raw TCP
 bytes, so it fronts Postgres, Redis or anything else that is not HTTP. The L7
 listener parses HTTP, runs a middleware chain, and re-issues each request to the
 backend. They share a load balancer, health checker and metrics; they differ in
@@ -156,9 +156,9 @@ run, which is why the table above quotes those.
 ## Quick start
 
 ```bash
-go build -o bin/gogate ./cmd/gogate
+go build -o bin/sluice ./cmd/sluice
 cp config.example.yaml config.yaml   # edit backends
-./bin/gogate -config config.yaml
+./bin/sluice -config config.yaml
 ```
 
 With the demo backends from `scripts/`:
@@ -166,7 +166,7 @@ With the demo backends from `scripts/`:
 ```bash
 go run ./scripts/echo-http -listen :9001 -registry "" &
 go run ./scripts/echo-http -listen :9002 -registry "" &
-./bin/gogate -config config.yaml
+./bin/sluice -config config.yaml
 ```
 
 ```bash
@@ -199,7 +199,7 @@ Watching the breaker trip and recover — kill one backend and drive traffic:
 ```
 
 Restart the backend, wait out `circuit_breaker.timeout`, and
-`gogate_circuit_breaker_state` returns to `0`.
+`sluice_circuit_breaker_state` returns to `0`.
 
 ### Docker
 
@@ -212,9 +212,9 @@ Brings up the proxy, three backends, Prometheus and Grafana.
 ### Kubernetes
 
 ```bash
-helm install gogate ./deployments/helm/gogate \
+helm install sluice ./deployments/helm/sluice \
   --set 'backends[0].addr=my-service:8080' \
-  --namespace gogate --create-namespace
+  --namespace sluice --create-namespace
 ```
 
 ---
@@ -293,11 +293,11 @@ misspelled optional key disables a feature with no error and no log line.
 `:9090/metrics`, Prometheus text format, generated without `client_golang`:
 
 ```
-gogate_backend_health{backend="10.0.0.5:8080"} 1
-gogate_circuit_breaker_state{backend="10.0.0.5:8080"} 0   # 0=closed 1=open 2=half-open
-gogate_rate_limiter_requests_total{result="rejected"} 0
-gogate_pool_hits_total{backend="10.0.0.5:8080"} 4821
-gogate_request_duration_seconds_bucket{le="0.05"} 19204
+sluice_backend_health{backend="10.0.0.5:8080"} 1
+sluice_circuit_breaker_state{backend="10.0.0.5:8080"} 0   # 0=closed 1=open 2=half-open
+sluice_rate_limiter_requests_total{result="rejected"} 0
+sluice_pool_hits_total{backend="10.0.0.5:8080"} 4821
+sluice_request_duration_seconds_bucket{le="0.05"} 19204
 ```
 
 Admin API: `GET /health`, `GET /stats`, `GET /backends`.
@@ -305,7 +305,7 @@ Admin API: `GET /health`, `GET /stats`, `GET /backends`.
 ## Architecture
 
 ```
-                 ┌──────────────────────── GoGate ────────────────────────┐
+                 ┌──────────────────────── Sluice ────────────────────────┐
                  │                                                        │
   raw TCP ──────▶│  L4 listener ──────────────────────────┐               │
                  │  byte copy, half-close, conn pool      │               │
@@ -329,11 +329,11 @@ so one layer's failures must not eject it from the other.
 ```bash
 go test -race ./...          # what CI runs; the pooled-connection race needs -race to show reliably
 go test ./... -bench=. -benchmem
-GOGATE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
+SLUICE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
 ```
 
 ```
-cmd/gogate/           entry point, listener and middleware wiring
+cmd/sluice/           entry point, listener and middleware wiring
 internal/
   proxy/              L4 tcp.go, L7 http.go, capacity harness
   backend/            backend abstraction, connection pool, half-close

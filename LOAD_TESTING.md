@@ -1,6 +1,6 @@
-# Load Testing & Monitoring GoGate
+# Load Testing & Monitoring Sluice
 
-This guide walks you through running a comprehensive load test of the gogate API gateway while monitoring metrics in Grafana.
+This guide walks you through running a comprehensive load test of the sluice API gateway while monitoring metrics in Grafana.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ This guide walks you through running a comprehensive load test of the gogate API
                    │
                    ▼
 ┌─────────────────────────────────────────────┐
-│      GoGate API Gateway (L4/L7)             │
+│      Sluice API Gateway (L4/L7)             │
 │  - Rate limiter, Circuit breaker           │
 │  - Load balancing, Connection pooling      │
 │  - Prometheus /metrics endpoint             │
@@ -45,14 +45,14 @@ This guide walks you through running a comprehensive load test of the gogate API
 ### 1. Start the Full Stack
 
 ```bash
-cd gogate
+cd sluice
 
 # Build and run all services
 docker compose up
 ```
 
 Wait for all services to be ready:
-- **gogate** - listens on 8080 (HTTP), 8081 (TCP)
+- **sluice** - listens on 8080 (HTTP), 8081 (TCP)
 - **prometheus** - available at http://localhost:9090
 - **grafana** - available at http://localhost:3000
 - **backend-1, backend-2** - sample httpbin services
@@ -61,7 +61,7 @@ Wait for all services to be ready:
 
 1. Open http://localhost:3000
 2. Login: `admin` / `admin`
-3. Go to **Dashboards** → **GoGate API Gateway**
+3. Go to **Dashboards** → **Sluice API Gateway**
 
 The dashboard auto-refreshes every 5 seconds and shows:
 - **P99/P95/P50 Latency** - Request response times (upper chart)
@@ -254,7 +254,7 @@ Pool Hit Rate:       Rising → 85% → High percentage
 
 ### Circuit Breaker Open
 🚨 Backend is failing
-- Check Prometheus logs: `docker compose logs gogate`
+- Check Prometheus logs: `docker compose logs sluice`
 - Verify backend health: `curl http://localhost:8001/status/200`
 - Wait for CB to auto-recover (half-open phase)
 
@@ -266,19 +266,19 @@ Open http://localhost:9090 and paste these queries:
 
 ```promql
 # Current request rate
-rate(gogate_http_requests_total[1m])
+rate(sluice_http_requests_total[1m])
 
 # P99 latency
-histogram_quantile(0.99, rate(gogate_http_request_duration_seconds_bucket[5m]))
+histogram_quantile(0.99, rate(sluice_http_request_duration_seconds_bucket[5m]))
 
 # Rate limiting rejections
-rate(gogate_rate_limiter_requests_total{status="rejected"}[1m])
+rate(sluice_rate_limiter_requests_total{status="rejected"}[1m])
 
 # Circuit breaker opens per backend
-increase(gogate_circuit_breaker_state{state="open"}[5m])
+increase(sluice_circuit_breaker_state{state="open"}[5m])
 
 # Connection pool efficiency
-rate(gogate_pool_hits_total[5m]) / (rate(gogate_pool_hits_total[5m]) + rate(gogate_pool_misses_total[5m]))
+rate(sluice_pool_hits_total[5m]) / (rate(sluice_pool_hits_total[5m]) + rate(sluice_pool_misses_total[5m]))
 ```
 
 ---
@@ -297,7 +297,7 @@ docker compose down -v
 
 ## Next Steps
 
-1. **Customize dashboard**: Edit `deployments/grafana/dashboards/gogate-overview.json`
+1. **Customize dashboard**: Edit `deployments/grafana/dashboards/sluice-overview.json`
 2. **Set alerting rules**: Add to Prometheus for auto-alerts
 3. **Stress test**: Run longer soaks with production-like patterns
 4. **Profile**: Use `go tool pprof` to identify bottlenecks

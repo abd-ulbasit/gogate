@@ -1,6 +1,6 @@
 # Design decisions
 
-Why GoGate is shaped the way it is, including the choices that turned out to be
+Why Sluice is shaped the way it is, including the choices that turned out to be
 wrong and what replaced them.
 
 ## Contents
