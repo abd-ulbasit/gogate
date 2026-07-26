@@ -1,5 +1,5 @@
 /**
- * GoGate Load Test Suite
+ * Sluice Load Test Suite
  * 
  * k6 load testing scripts for L4/L7 proxy performance testing
  * 
@@ -160,13 +160,13 @@ function testAdminEndpoints() {
 
 // Setup function - runs once before test
 export function setup() {
-  console.log(`Testing GoGate at ${BASE_URL}`);
+  console.log(`Testing Sluice at ${BASE_URL}`);
   console.log(`Admin API at ${ADMIN_URL}`);
 
   // Verify proxy is reachable
   const res = http.get(`${ADMIN_URL}/health`);
   if (res.status !== 200) {
-    fail(`GoGate is not reachable at ${ADMIN_URL}`);
+    fail(`Sluice is not reachable at ${ADMIN_URL}`);
   }
 
   return { startTime: new Date().toISOString() };
@@ -188,7 +188,7 @@ export function handleSummary(data) {
 
 function textSummary(data, options) {
   const lines = [];
-  lines.push('\n=== GoGate Load Test Summary ===\n');
+  lines.push('\n=== Sluice Load Test Summary ===\n');
 
   // Request stats
   if (data.metrics.http_req_duration) {

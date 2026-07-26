@@ -1,4 +1,4 @@
-# GoGate configuration for the docker-compose stack in the repository root.
+# Sluice configuration for the docker-compose stack in the repository root.
 #
 # Key names must match the yaml tags in internal/config/config.go; see
 # config.example.yaml for the annotated reference.

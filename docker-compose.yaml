@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  # GoGate API Gateway
-  gogate:
+  # Sluice API Gateway
+  sluice:
     build:
       context: .
       dockerfile: Dockerfile
@@ -10,14 +10,14 @@ services:
       - "8080:8080"   # Main proxy (both L4 and L7)
       - "9091:9091"   # Admin API (metrics, stats)
     environment:
-      - CONFIG_PATH=/etc/gogate/config.yaml
+      - CONFIG_PATH=/etc/sluice/config.yaml
     volumes:
-      - ./config.docker.yaml:/etc/gogate/config.yaml
+      - ./config.docker.yaml:/etc/sluice/config.yaml
     depends_on:
       - backend-1
       - backend-2
     networks:
-      - gogate
+      - sluice
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s
@@ -30,7 +30,7 @@ services:
     ports:
       - "8001:80"
     networks:
-      - gogate
+      - sluice
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/status/200"]
       interval: 5s
@@ -42,7 +42,7 @@ services:
     ports:
       - "8002:80"
     networks:
-      - gogate
+      - sluice
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/status/200"]
       interval: 5s
@@ -61,9 +61,9 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yaml'
       - '--storage.tsdb.path=/prometheus'
     networks:
-      - gogate
+      - sluice
     depends_on:
-      - gogate
+      - sluice
 
   # Grafana - visualization
   grafana:
@@ -80,7 +80,7 @@ services:
       - ./deployments/grafana/provisioning/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
     networks:
-      - gogate
+      - sluice
     depends_on:
       - prometheus
 
@@ -89,5 +89,5 @@ volumes:
   grafana-data:
 
 networks:
-  gogate:
+  sluice:
     driver: bridge

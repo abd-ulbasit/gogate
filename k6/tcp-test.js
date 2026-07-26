@@ -1,5 +1,5 @@
 /**
- * GoGate TCP Proxy Load Test
+ * Sluice TCP Proxy Load Test
  * 
  * Tests L4 TCP proxy performance using WebSocket (k6 doesn't support raw TCP)
  * For raw TCP testing, use the shell scripts or netcat

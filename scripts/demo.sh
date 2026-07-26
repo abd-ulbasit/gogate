@@ -1,12 +1,12 @@
 #!/bin/bash
-# GoGate Demo Script
+# Sluice Demo Script
 # This script starts echo backends and optionally runs load tests.
 #
 # Usage:
 #   ./scripts/demo.sh backends     # Start 3 TCP echo backends on ports 9001-9003
-#   ./scripts/demo.sh gateway      # Start GoGate
-#   ./scripts/demo.sh load-tcp     # Run TCP load test against GoGate
-#   ./scripts/demo.sh load-http    # Run HTTP load test against GoGate
+#   ./scripts/demo.sh gateway      # Start Sluice
+#   ./scripts/demo.sh load-tcp     # Run TCP load test against Sluice
+#   ./scripts/demo.sh load-http    # Run HTTP load test against Sluice
 #   ./scripts/demo.sh all          # Start backends + gateway (in background), then wait
 #   ./scripts/demo.sh stop         # Kill all demo processes
 
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-PIDS_FILE="/tmp/gogate-demo-pids"
+PIDS_FILE="/tmp/sluice-demo-pids"
 
 start_backends() {
     echo "Starting TCP echo backends on ports 9001, 9002, 9003..."
@@ -38,20 +38,20 @@ start_backends() {
 }
 
 start_gateway() {
-    echo "Starting GoGate..."
-    go run ./cmd/gogate/main.go &
+    echo "Starting Sluice..."
+    go run ./cmd/sluice/main.go &
     echo $! >> "$PIDS_FILE"
-    echo "GoGate started. PID saved to $PIDS_FILE"
+    echo "Sluice started. PID saved to $PIDS_FILE"
     sleep 2
 }
 
 run_load_tcp() {
-    echo "Running TCP load test against GoGate (30s, 200 req/s, 50 workers)..."
+    echo "Running TCP load test against Sluice (30s, 200 req/s, 50 workers)..."
     go run ./scripts/load-tcp -addr localhost:8080 -concurrency 50 -rate 200 -duration 30s
 }
 
 run_load_http() {
-    echo "Running HTTP load test against GoGate (30s, 200 req/s, 20 workers)..."
+    echo "Running HTTP load test against Sluice (30s, 200 req/s, 20 workers)..."
     go run ./scripts/load-http -target http://localhost:8080/ -concurrency 20 -rate 200 -duration 30s
 }
 
@@ -92,7 +92,7 @@ case "${1:-help}" in
         start_backends
         start_gateway
         echo ""
-        echo "=== GoGate Demo Running ==="
+        echo "=== Sluice Demo Running ==="
         echo "Backends: localhost:9001, localhost:9002, localhost:9003"
         echo "Gateway:  localhost:8080"
         echo "Admin:    localhost:9090"
@@ -110,13 +110,13 @@ case "${1:-help}" in
         stop_all
         ;;
     *)
-        echo "GoGate Demo Script"
+        echo "Sluice Demo Script"
         echo ""
         echo "Usage: $0 <command>"
         echo ""
         echo "Commands:"
         echo "  backends    Start 3 TCP echo backends on ports 9001-9003"
-        echo "  gateway     Start GoGate gateway"
+        echo "  gateway     Start Sluice gateway"
         echo "  load-tcp    Run TCP load test (30s)"
         echo "  load-http   Run HTTP load test (30s)"
         echo "  all         Start backends + gateway, then wait"

@@ -1,5 +1,5 @@
 /**
- * GoGate Circuit Breaker Test
+ * Sluice Circuit Breaker Test
  * 
  * Tests circuit breaker behavior under backend failures
  * 

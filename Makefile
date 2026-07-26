@@ -1,9 +1,9 @@
-# Makefile for GoGate
+# Makefile for Sluice
 
 .PHONY: all build test lint clean docker docker-push helm-package help
 
 # Variables
-BINARY_NAME=gogate
+BINARY_NAME=sluice
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -11,7 +11,7 @@ LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X m
 
 # Docker
 REGISTRY?=ghcr.io
-IMAGE_NAME?=abd-ulbasit/gogate
+IMAGE_NAME?=abd-ulbasit/sluice
 DOCKER_TAG?=$(VERSION)
 
 # Go
@@ -24,14 +24,14 @@ all: lint test build
 ## Build
 build: ## Build the binary
 	@echo "Building $(BINARY_NAME)..."
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/gogate
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/sluice
 
 build-all: ## Build for all platforms
 	@echo "Building for all platforms..."
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 ./cmd/gogate
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-arm64 ./cmd/gogate
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/gogate
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/gogate
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 ./cmd/sluice
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-arm64 ./cmd/sluice
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/sluice
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/sluice
 
 ## Test
 test: ## Run tests
@@ -79,24 +79,24 @@ docker-compose-logs: ## View docker-compose logs
 
 ## Kubernetes
 helm-lint: ## Lint Helm chart
-	helm lint deployments/helm/gogate
+	helm lint deployments/helm/sluice
 
 helm-template: ## Render Helm templates
-	helm template gogate deployments/helm/gogate
+	helm template sluice deployments/helm/sluice
 
 helm-package: ## Package Helm chart
-	helm package deployments/helm/gogate -d dist/
+	helm package deployments/helm/sluice -d dist/
 
 ## Development
 run: ## Run locally
-	go run ./cmd/gogate -config config.yaml
+	go run ./cmd/sluice -config config.yaml
 
 run-dev: ## Run with development settings
-	go run ./cmd/gogate -config config.yaml -dev
+	go run ./cmd/sluice -config config.yaml -dev
 
 watch: ## Run with file watching (requires entr)
 	@which entr > /dev/null || (echo "Install entr: brew install entr" && exit 1)
-	find . -name '*.go' | entr -r go run ./cmd/gogate -config config.yaml
+	find . -name '*.go' | entr -r go run ./cmd/sluice -config config.yaml
 
 ## Load testing
 k6-load: ## Run k6 load test

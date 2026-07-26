@@ -1,10 +1,10 @@
 # =============================================================================
-# GoGate Local Development Stack
+# Sluice Local Development Stack
 # =============================================================================
 # Usage:
 #   docker-compose up -d              # Start all services
 #   docker-compose up -d --build      # Rebuild and start
-#   docker-compose logs -f gogate     # Follow gogate logs
+#   docker-compose logs -f sluice     # Follow sluice logs
 #   docker-compose down               # Stop all services
 # =============================================================================
 
@@ -12,14 +12,14 @@ version: "3.9"
 
 services:
   # ---------------------------------------------------------------------------
-  # GoGate Proxy
+  # Sluice Proxy
   # ---------------------------------------------------------------------------
-  gogate:
+  sluice:
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: gogate:local
-    container_name: gogate
+    image: sluice:local
+    container_name: sluice
     restart: unless-stopped
     ports:
       - "8080:8080"   # L4 TCP proxy
@@ -27,7 +27,7 @@ services:
       - "9090:9090"   # Admin API
       - "9091:9091"   # Prometheus metrics
     volumes:
-      - ./config-docker.yaml:/etc/gogate/config.yaml:ro
+      - ./config-docker.yaml:/etc/sluice/config.yaml:ro
     environment:
       - TZ=UTC
     healthcheck:
@@ -40,7 +40,7 @@ services:
       - backend1
       - backend2
     networks:
-      - gogate-net
+      - sluice-net
 
   # ---------------------------------------------------------------------------
   # Backend Services (for demo/testing)
@@ -52,7 +52,7 @@ services:
     ports:
       - "9001:8080"
     networks:
-      - gogate-net
+      - sluice-net
 
   backend2:
     image: hashicorp/http-echo:latest
@@ -61,7 +61,7 @@ services:
     ports:
       - "9002:8080"
     networks:
-      - gogate-net
+      - sluice-net
 
   backend3:
     image: hashicorp/http-echo:latest
@@ -70,7 +70,7 @@ services:
     ports:
       - "9003:8080"
     networks:
-      - gogate-net
+      - sluice-net
 
   # ---------------------------------------------------------------------------
   # Observability Stack
@@ -89,7 +89,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
     networks:
-      - gogate-net
+      - sluice-net
 
   grafana:
     image: grafana/grafana:latest
@@ -108,10 +108,10 @@ services:
     depends_on:
       - prometheus
     networks:
-      - gogate-net
+      - sluice-net
 
 networks:
-  gogate-net:
+  sluice-net:
     driver: bridge
 
 volumes:

@@ -1,5 +1,5 @@
 /**
- * GoGate Rate Limiter Stress Test
+ * Sluice Rate Limiter Stress Test
  * 
  * Tests the token bucket rate limiter under heavy load
  * 

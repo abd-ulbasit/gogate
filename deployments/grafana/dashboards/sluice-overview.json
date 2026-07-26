@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "GoGate TCP Proxy Monitoring - Shows TCP connection-level metrics (not HTTP request level)",
+  "description": "Sluice TCP Proxy Monitoring - Shows TCP connection-level metrics (not HTTP request level)",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
@@ -51,7 +51,7 @@
       },
       "targets": [
         {
-          "expr": "rate(gogate_connections_total[30s])",
+          "expr": "rate(sluice_connections_total[30s])",
           "legendFormat": "TCP Connections/sec"
         }
       ],
@@ -98,7 +98,7 @@
       },
       "targets": [
         {
-          "expr": "gogate_connections_active",
+          "expr": "sluice_connections_active",
           "legendFormat": "Active Connections"
         }
       ],
@@ -145,11 +145,11 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(gogate_backend_bytes_received_total[30s]))",
+          "expr": "sum(rate(sluice_backend_bytes_received_total[30s]))",
           "legendFormat": "Bytes Received"
         },
         {
-          "expr": "sum(rate(gogate_backend_bytes_sent_total[30s]))",
+          "expr": "sum(rate(sluice_backend_bytes_sent_total[30s]))",
           "legendFormat": "Bytes Sent"
         }
       ],
@@ -196,11 +196,11 @@
       },
       "targets": [
         {
-          "expr": "rate(gogate_backend_requests_total{backend=\"backend-1:80\"}[30s])",
+          "expr": "rate(sluice_backend_requests_total{backend=\"backend-1:80\"}[30s])",
           "legendFormat": "backend-1:80"
         },
         {
-          "expr": "rate(gogate_backend_requests_total{backend=\"backend-2:80\"}[30s])",
+          "expr": "rate(sluice_backend_requests_total{backend=\"backend-2:80\"}[30s])",
           "legendFormat": "backend-2:80"
         }
       ],
@@ -247,7 +247,7 @@
       },
       "targets": [
         {
-          "expr": "rate(gogate_connection_duration_seconds_total[30s]) / rate(gogate_connections_total[30s])",
+          "expr": "rate(sluice_connection_duration_seconds_total[30s]) / rate(sluice_connections_total[30s])",
           "legendFormat": "Avg Connection Duration"
         }
       ],
@@ -294,15 +294,15 @@
       },
       "targets": [
         {
-          "expr": "sum(gogate_pool_size)",
+          "expr": "sum(sluice_pool_size)",
           "legendFormat": "Pool Size"
         },
         {
-          "expr": "rate(gogate_pool_hits_total[30s])",
+          "expr": "rate(sluice_pool_hits_total[30s])",
           "legendFormat": "Pool Hits/sec"
         },
         {
-          "expr": "rate(gogate_pool_misses_total[30s])",
+          "expr": "rate(sluice_pool_misses_total[30s])",
           "legendFormat": "Pool Misses/sec"
         }
       ],
@@ -369,7 +369,7 @@
       },
       "targets": [
         {
-          "expr": "gogate_backend_health",
+          "expr": "sluice_backend_health",
           "format": "table",
           "instant": true
         }
@@ -410,11 +410,11 @@
       },
       "targets": [
         {
-          "expr": "gogate_uptime_seconds",
+          "expr": "sluice_uptime_seconds",
           "legendFormat": "Uptime"
         }
       ],
-      "title": "GoGate Uptime",
+      "title": "Sluice Uptime",
       "type": "stat"
     },
     {
@@ -450,7 +450,7 @@
       },
       "targets": [
         {
-          "expr": "gogate_connections_total",
+          "expr": "sluice_connections_total",
           "legendFormat": "Total Connections"
         }
       ],
@@ -461,7 +461,7 @@
   "schemaVersion": 27,
   "style": "dark",
   "tags": [
-    "gogate",
+    "sluice",
     "tcp-proxy"
   ],
   "templating": {
@@ -473,7 +473,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "GoGate TCP Proxy",
-  "uid": "gogate-overview",
+  "title": "Sluice TCP Proxy",
+  "uid": "sluice-overview",
   "version": 1
 }

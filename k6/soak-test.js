@@ -1,5 +1,5 @@
 /**
- * GoGate Soak Test
+ * Sluice Soak Test
  * 
  * Long-running test to detect memory leaks, connection leaks, etc.
  * 

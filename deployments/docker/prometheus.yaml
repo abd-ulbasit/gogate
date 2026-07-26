@@ -1,14 +1,14 @@
-# Prometheus configuration for GoGate
+# Prometheus configuration for Sluice
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  # GoGate metrics
-  - job_name: 'gogate'
+  # Sluice metrics
+  - job_name: 'sluice'
     static_configs:
-      - targets: ['gogate:9091']
+      - targets: ['sluice:9091']
     metrics_path: /metrics
     scrape_interval: 5s
 

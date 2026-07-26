@@ -1,4 +1,4 @@
-# GoGate configuration for the docker-compose stack in this directory.
+# Sluice configuration for the docker-compose stack in this directory.
 #
 # Key names must match the yaml tags in internal/config/config.go. Unrecognised
 # keys are silently ignored by the loader, so a camelCase spelling here starts

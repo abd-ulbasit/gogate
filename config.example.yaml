@@ -1,10 +1,10 @@
-# GoGate configuration reference.
+# Sluice configuration reference.
 #
 # Every key below is read by internal/config/config.go. Anything the binary does
 # not implement is not listed here - if a setting appears in this file, it works.
 # Copy to config.yaml and edit.
 #
-#   ./bin/gogate -config config.yaml
+#   ./bin/sluice -config config.yaml
 
 server:
   # L4 listener: raw TCP. Bytes are copied between client and backend without
