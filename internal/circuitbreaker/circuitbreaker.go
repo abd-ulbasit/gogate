@@ -68,8 +68,9 @@ type Config struct {
 	// SuccessThreshold: successes in half-open before closing (default: 1)
 	SuccessThreshold int
 
-	// MaxHalfOpenRequests: probes admitted concurrently in half-open
-	// (default: SuccessThreshold). Admitting exactly SuccessThreshold probes
+	// MaxHalfOpenRequests: probes admitted concurrently in half-open.
+	// Zero means "derive from SuccessThreshold", which New does.
+	// Admitting exactly SuccessThreshold probes
 	// lets a healthy backend close the circuit in one round trip instead of
 	// SuccessThreshold sequential ones, while still bounding the load a
 	// recovering backend receives. Set to 1 for the most cautious probe.
@@ -85,9 +86,12 @@ type Config struct {
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		FailureThreshold:    5,
-		SuccessThreshold:    1,
-		MaxHalfOpenRequests: 1,
+		FailureThreshold: 5,
+		SuccessThreshold: 1,
+		// Left at zero so New derives it from SuccessThreshold. Hardcoding a
+		// number here would silently diverge from the documented default as
+		// soon as a caller raised SuccessThreshold on the returned Config.
+		MaxHalfOpenRequests: 0,
 		Timeout:             30 * time.Second,
 		Window:              60 * time.Second,
 	}

@@ -295,3 +295,20 @@ func TestHalfOpenDefaultsToSuccessThreshold(t *testing.T) {
 		t.Fatalf("probe 4: expected ErrCircuitOpen, got %v", err)
 	}
 }
+
+// TestDefaultConfigDerivesMaxHalfOpenRequests pins DefaultConfig to the documented
+// default rather than to a hardcoded number. DefaultConfig previously returned
+// MaxHalfOpenRequests: 1, which happened to equal its own SuccessThreshold; a
+// caller who took the defaults and raised SuccessThreshold got a breaker that
+// contradicted the field's documentation, with nothing to catch it.
+func TestDefaultConfigDerivesMaxHalfOpenRequests(t *testing.T) {
+	if got := DefaultConfig().MaxHalfOpenRequests; got != 0 {
+		t.Fatalf("DefaultConfig().MaxHalfOpenRequests = %d, want 0 so New derives it", got)
+	}
+
+	cfg := DefaultConfig()
+	cfg.SuccessThreshold = 4
+	if got := New(cfg).config.MaxHalfOpenRequests; got != 4 {
+		t.Fatalf("MaxHalfOpenRequests = %d, want SuccessThreshold (4)", got)
+	}
+}
