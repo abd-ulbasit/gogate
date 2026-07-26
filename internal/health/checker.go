@@ -2,8 +2,12 @@ package health
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,9 +19,8 @@ import (
 // Two types of health checking:
 //
 // 1. ACTIVE (this file): Periodically probe backends
-//   - TCP connect check (can we establish connection?)
-//   - HTTP check (does /health return 200?) - TODO
-//   - Custom check (user-defined) - TODO
+//   - TCP connect check: is the port open?
+//   - HTTP check: does HTTPPath return 2xx?
 //
 // 2. PASSIVE (in proxy): Track connection failures
 //   - If backend fails X connections in Y seconds, mark unhealthy
@@ -39,6 +42,10 @@ type Checker struct {
 	ready        chan struct{}
 	successCount map[string]int
 	failureCount map[string]int
+
+	// Shared HTTP client for CheckType "http", built on first use.
+	httpOnce sync.Once
+	http     *http.Client
 }
 
 // CheckerConfig contains health check configuration.
@@ -188,11 +195,8 @@ func (c *Checker) checkOne(ctx context.Context, b *backend.Backend) {
 
 	var err error
 	switch c.config.CheckType {
-	case "tcp":
-		err = c.tcpCheck(checkCtx, b.Addr())
 	case "http":
-		// TODO(basit): Implement HTTP health check
-		err = c.tcpCheck(checkCtx, b.Addr())
+		err = c.httpCheck(checkCtx, b.Addr())
 	default:
 		err = c.tcpCheck(checkCtx, b.Addr())
 	}
@@ -233,6 +237,11 @@ func (c *Checker) checkOne(ctx context.Context, b *backend.Backend) {
 }
 
 // tcpCheck verifies backend accepts TCP connections.
+//
+// This says the port is open. It does not say the process behind it is serving:
+// an application deadlocked after startup still completes the TCP handshake,
+// because the kernel accepts on its behalf. Use httpCheck when the backend
+// speaks HTTP.
 func (c *Checker) tcpCheck(ctx context.Context, addr string) error {
 	dialer := &net.Dialer{}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
@@ -241,6 +250,70 @@ func (c *Checker) tcpCheck(ctx context.Context, addr string) error {
 	}
 	conn.Close()
 	return nil
+}
+
+// httpCheck verifies the backend answers HTTPPath with a 2xx.
+//
+// A 2xx is required rather than "any response": a backend returning 503 from
+// its health endpoint is telling us it is not ready, and treating that as
+// healthy would defeat the point of asking. Redirects are not followed - a
+// health endpoint that redirects is misconfigured, and following it could
+// silently probe a different host.
+//
+// The response body is drained and discarded so the connection can be returned
+// to the transport's idle pool; abandoning it unread forces a new TCP handshake
+// on every interval.
+func (c *Checker) httpCheck(ctx context.Context, addr string) error {
+	path := c.config.HTTPPath
+	if path == "" {
+		path = "/health"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	url := "http://" + addr + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "gogate-health/1")
+
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("health check %s returned %s", url, resp.Status)
+	}
+	return nil
+}
+
+// httpClient returns the shared client used for HTTP health checks.
+//
+// One client for all backends, created once: a fresh http.Client per check
+// would discard the connection pool every interval and leak idle connections
+// until the finalizer ran. Timeouts come from the per-check context, so the
+// client itself sets none.
+func (c *Checker) httpClient() *http.Client {
+	c.httpOnce.Do(func() {
+		c.http = &http.Client{
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+			Transport: &http.Transport{
+				// Bounded to the number of backends we expect to probe.
+				MaxIdleConns:        64,
+				MaxIdleConnsPerHost: 2,
+				IdleConnTimeout:     90 * time.Second,
+				DisableCompression:  true,
+			},
+		}
+	})
+	return c.http
 }
 
 // UpdateBackends replaces the backend list with a new set.
