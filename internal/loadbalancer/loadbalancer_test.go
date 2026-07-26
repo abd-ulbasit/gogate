@@ -8,13 +8,8 @@ import (
 )
 
 // =============================================================================
-// Test Scaffolding for Load Balancer Package
-// =============================================================================
-// These tests validate load balancing algorithms. Focus on:
-// 1. Distribution fairness
-// 2. Thread-safety under concurrent access
-// 3. Handling of unhealthy backends
-// 4. Empty pool edge cases
+// Load balancing algorithm tests: distribution fairness, thread safety under
+// concurrent Next() calls, unhealthy-backend skipping, and empty-pool handling.
 // =============================================================================
 
 // TestRoundRobinDistribution verifies fair distribution
@@ -139,10 +134,10 @@ func TestRoundRobinConcurrent(t *testing.T) {
 }
 
 // TestLeastConnectionsPreference verifies least connections logic
-// TODO(basit): LeastConnections requires internal connection tracking
-// The Backend tracks connections through Dial() internally, so we can't
-// easily simulate different connection counts without real connections.
-// For now, we test the basic selection and empty pool behavior.
+// Backend.activeConns is incremented inside Dial() and decremented on Close(),
+// with no setter, so a unit test cannot stage arbitrary connection counts
+// without opening real sockets. This covers selection and the empty-pool path;
+// the preference ordering itself is exercised end to end in internal/proxy.
 func TestLeastConnectionsPreference(t *testing.T) {
 	b1 := backend.NewBackend("server1:8080")
 	b2 := backend.NewBackend("server2:8080")

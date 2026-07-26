@@ -9,10 +9,15 @@ import (
 // Router handles HTTP request routing based on host and path matching.
 //
 // Design decisions:
-// 1. Why custom router vs gorilla/mux or chi?
-//   - Learning: Understand how routing works internally
-//   - Simplicity: We only need path prefix and host matching
-//   - No dependencies: Keep the project self-contained
+// 1. Why a custom router rather than gorilla/mux or chi?
+//   - The matching this gateway needs is host + path-prefix, longest-prefix
+//     wins. That is a linear scan over a small route table, not a radix tree.
+//   - Route matching sits on the request hot path; keeping it to one slice walk
+//     with no allocations is easier to reason about than tuning someone else's.
+//   - No dependencies in the request path.
+//
+// This is not a general-purpose router: no path parameters, no regex, no method
+// trees. Reach for chi if you need those.
 //
 // 2. Route matching order:
 //   - Most specific first (longer path prefix wins)

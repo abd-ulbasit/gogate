@@ -416,7 +416,7 @@ func TestTCPProxyLoadBalancerIntegration(t *testing.T) {
 }
 
 // =============================================================================
-// Week 4 Integration Tests: Rate Limiter, Circuit Breaker, Metrics
+// Integration tests: rate limiter, circuit breaker, metrics
 // =============================================================================
 
 // TestTCPProxyWithRateLimiter verifies rate limiting blocks excess connections.

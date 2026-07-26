@@ -16,10 +16,14 @@
 //	Signature: Algorithm-specific hash of "header.payload"
 //
 // Why build from scratch?
-//   - Learning: Understand JWT internals (encoding, signing, verification)
-//   - Security awareness: Know exactly what's being validated
-//   - Zero dependencies: No external attack surface
-//   - Production: Would use github.com/golang-jwt/jwt, but learning > convenience
+//   - Zero dependencies: a gateway's auth path is the last place you want an
+//     unaudited transitive dependency tree
+//   - Explicit validation: every claim that is checked is checked here, in one
+//     readable function, rather than behind a library's default options
+//
+// The trade-off is real and worth stating: github.com/golang-jwt/jwt has had far
+// more adversarial attention than this file. Prefer it if you need JWKS
+// rotation, encrypted tokens (JWE), or algorithms beyond HS256/RS256.
 //
 // Thread safety: All public functions are safe for concurrent use.
 package auth

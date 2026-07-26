@@ -33,10 +33,12 @@ import (
 // 4. Copy response back to client
 // 5. Record metrics
 //
-// Why not just use httputil.ReverseProxy?
-// - Learning: Understand reverse proxy internals
-// - Control: Integrate with our circuit breaker, load balancer, metrics
-// - Features: Custom retry logic, request modification
+// Why not httputil.ReverseProxy?
+// Its Director/Rewrite hook runs after the backend has been chosen and offers no
+// place to fail a request before dialling. Backend selection here has to consult
+// the load balancer and then the circuit breaker, and short-circuit with a 503
+// when the breaker is open - which means owning the RoundTrip call rather than
+// handing it to ReverseProxy.
 //
 // Thread safety: All methods are safe for concurrent use.
 type HTTPProxy struct {

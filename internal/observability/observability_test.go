@@ -55,8 +55,8 @@ func TestNewLogger_LevelFiltering(t *testing.T) {
 	}
 
 	logger := NewLogger(cfg)
-	logger.Info("info message")  // Should be filtered
-	logger.Warn("warn message")  // Should appear
+	logger.Info("info message") // Should be filtered
+	logger.Warn("warn message") // Should appear
 
 	output := buf.String()
 	if strings.Contains(output, "info message") {

@@ -22,16 +22,10 @@ func waitUntil(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Fatalf("condition not met within %s", timeout)
 }
 
-// Test Scaffolding for Backend Package
-// =============================================================================
-// These tests validate the Backend abstraction. Your job is to:
-// 1. Fill in the test case values in the table-driven tests
-// 2. Think about edge cases and add more test cases
-// 3. Run with -race to catch concurrency bugs
+// Backend abstraction tests.
 // =============================================================================
 
 func TestNewBackend(t *testing.T) {
-	// TODO(basit): Add test cases for NewBackend
 	tests := []struct {
 		name    string
 		addr    string
@@ -42,10 +36,16 @@ func TestNewBackend(t *testing.T) {
 			addr:    "localhost:8080",
 			wantErr: false,
 		},
-		// TODO(basit): Add more test cases:
-		// - empty address
-		// - IPv6 address
-		// - address with hostname
+		{
+			name:    "IPv6 address",
+			addr:    "[::1]:8080",
+			wantErr: false,
+		},
+		{
+			name:    "hostname",
+			addr:    "backend.internal:8080",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -16,9 +16,10 @@ import (
 // https://prometheus.io/docs/instrumenting/exposition_formats/
 //
 // Format:
-//   # HELP metric_name Description
-//   # TYPE metric_name type
-//   metric_name{label="value"} value timestamp
+//
+//	# HELP metric_name Description
+//	# TYPE metric_name type
+//	metric_name{label="value"} value timestamp
 //
 // Design decisions:
 // - Pure Go implementation (no prometheus client dependency)
@@ -27,19 +28,23 @@ import (
 // - Namespace prefix "gogate_" for all metrics
 //
 // Why build our own exporter?
-// 1. Learning - understand Prometheus format internals
-// 2. No dependency - keeps gogate dependency-free
-// 3. Control - expose exactly what we need
+// The exposition format is a few hundred lines of text generation, and pulling
+// in client_golang would add its dependency tree to a binary whose selling point
+// is that it has almost none. The metrics here are counters and gauges read from
+// atomics; none of them need a registry, collectors, or a push gateway.
+//
+// Switch to client_golang the moment you need exemplars, native histograms, or
+// anything that has to interoperate with third-party collectors.
 type PrometheusExporter struct {
 	collector *Collector
 	namespace string
 
 	// Additional metrics sources
-	mu                  sync.RWMutex
-	backendHealthGetter func() map[string]bool            // backend addr -> healthy
-	circuitBreakerGetter func() map[string]int            // backend addr -> state (0=closed, 1=open, 2=half-open)
-	rateLimiterStats    func() (allowed, rejected int64)  // rate limiter stats
-	poolStatsGetter     func() map[string]PoolStatsSnapshot // backend addr -> pool stats
+	mu                   sync.RWMutex
+	backendHealthGetter  func() map[string]bool              // backend addr -> healthy
+	circuitBreakerGetter func() map[string]int               // backend addr -> state (0=closed, 1=open, 2=half-open)
+	rateLimiterStats     func() (allowed, rejected int64)    // rate limiter stats
+	poolStatsGetter      func() map[string]PoolStatsSnapshot // backend addr -> pool stats
 }
 
 // PoolStatsSnapshot holds pool statistics for Prometheus export.
