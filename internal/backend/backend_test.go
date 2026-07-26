@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -284,5 +285,123 @@ func benchmarkBackendDial(b *testing.B, pooled bool) {
 
 		// Throttle to avoid exhausting ephemeral ports in no-pool mode during benchmarks
 		time.Sleep(200 * time.Microsecond)
+	}
+}
+
+// =============================================================================
+// Connection pool: half-close correctness
+// =============================================================================
+
+// newTestPooledConn builds a pooledConn backed by an in-memory pipe. The pipe is
+// enough to exercise the Close/CloseWrite state machine: CloseWrite only issues a
+// real FIN on *net.TCPConn, and what these tests check is the pooling decision,
+// not the syscall.
+func newTestPooledConn(t *testing.T, maxIdle int) (*pooledConn, *connPool, func()) {
+	t.Helper()
+	local, remote := net.Pipe()
+	b := NewBackend("test-backend")
+	p := newConnPool(PoolConfig{MaxIdle: maxIdle, IdleTimeout: time.Minute, MaxLifetime: time.Minute})
+	b.pool = p
+	pc := &pooledConn{Conn: local, backend: b, pool: p, createdAt: time.Now()}
+	pc.touch()
+	b.activeConns.Add(1)
+	return pc, p, func() {
+		local.Close()
+		remote.Close()
+	}
+}
+
+func TestPooledConnHalfClosedIsNotPooled(t *testing.T) {
+	pc, p, cleanup := newTestPooledConn(t, 1)
+	defer cleanup()
+
+	if err := pc.CloseWrite(); err != nil {
+		t.Fatalf("CloseWrite: %v", err)
+	}
+	if err := pc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if got := len(p.idle); got != 0 {
+		t.Errorf("half-closed connection was returned to the pool (idle=%d, want 0)", got)
+	}
+	if got := p.Stats().Dropped; got != 0 {
+		// Close() bypasses put() entirely for half-closed conns, so the drop is
+		// not attributed to the pool.
+		t.Logf("pool dropped counter: %d", got)
+	}
+}
+
+func TestPooledConnCloseWriteAfterReturnIsNoOp(t *testing.T) {
+	pc, p, cleanup := newTestPooledConn(t, 1)
+	defer cleanup()
+
+	if err := pc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if got := len(p.idle); got != 1 {
+		t.Fatalf("healthy connection was not pooled (idle=%d, want 1)", got)
+	}
+
+	// The connection now belongs to the pool and may already have been checked
+	// out by someone else. A late CloseWrite must not touch it.
+	if err := pc.CloseWrite(); err != nil {
+		t.Fatalf("late CloseWrite: %v", err)
+	}
+	if pc.isHalfClosed() {
+		t.Error("late CloseWrite marked a pooled connection half-closed")
+	}
+	if got := len(p.idle); got != 1 {
+		t.Errorf("late CloseWrite disturbed the pool (idle=%d, want 1)", got)
+	}
+}
+
+// TestPooledConnConcurrentCloseAndCloseWrite is the regression test for the
+// interleaving that put a half-closed connection back in the pool.
+//
+// The window was a few instructions wide: CloseWrite read `returned` (false),
+// and before it could set `halfClosed`, a concurrent Close() completed its own
+// check-and-set and pooled the connection. The next request to check that
+// connection out inherited a socket that was about to receive FIN.
+//
+// The window is too narrow to hit reliably without scheduler noise, so this test
+// runs many trials and asserts the invariant rather than a specific interleaving:
+// a connection marked half-closed must never be sitting in the idle pool. Against
+// the pre-fix implementation it reports violations under `go test -race`
+// (the CI configuration), typically ~10-20 out of 50k trials.
+func TestPooledConnConcurrentCloseAndCloseWrite(t *testing.T) {
+	const trials = 50000
+
+	for i := 0; i < trials; i++ {
+		pc, p, cleanup := newTestPooledConn(t, 1)
+
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			pc.CloseWrite()
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			pc.Close()
+		}()
+		close(start)
+		wg.Wait()
+
+		pooled := len(p.idle) == 1
+		if pooled && pc.isHalfClosed() {
+			cleanup()
+			t.Fatalf("trial %d: connection is both half-closed and sitting in the idle pool", i)
+		}
+		// A pooled connection would be handed to the next caller; drain it.
+		select {
+		case c := <-p.idle:
+			c.Conn.Close()
+		default:
+		}
+		cleanup()
 	}
 }

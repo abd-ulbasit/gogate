@@ -373,24 +373,50 @@ func (p *connPool) Stats() PoolStats {
 //   - Dropped: connections discarded (pool full, expired, or unusable)
 //
 // pooledConn wraps net.Conn to support pool return and active counter tracking.
+//
+// Concurrency: Close() and CloseWrite() both decide the connection's fate, and
+// the decision depends on two pieces of state at once - whether the connection
+// has been handed back to the pool, and whether it has sent FIN. Tracking those
+// as two independent atomics leaves a window between CloseWrite's "am I still
+// checked out?" read and its "mark half-closed" write. A concurrent Close() that
+// lands inside that window sees halfClosed still false and returns a connection
+// to the pool that is about to have FIN sent on it; the next request to check it
+// out gets its stream truncated mid-flight.
+//
+// Both bits therefore live under one mutex. These are once-per-connection
+// operations, not per-byte, so the lock costs nothing measurable on the hot
+// path (lastUsed stays atomic - the pool reads it without holding the lock).
 type pooledConn struct {
 	net.Conn
-	backend    *Backend
-	pool       *connPool
-	createdAt  time.Time
-	lastUsed   atomic.Int64 // unix nanos
-	returned   atomic.Bool
-	halfClosed atomic.Bool // true if CloseWrite() was called
+	backend   *Backend
+	pool      *connPool
+	createdAt time.Time
+	lastUsed  atomic.Int64 // unix nanos
+
+	mu         sync.Mutex
+	returned   bool // true once handed back to the pool or closed for good
+	halfClosed bool // true once CloseWrite() has sent FIN
 }
 
 func (c *pooledConn) touch() {
 	c.lastUsed.Store(time.Now().UnixNano())
-	c.returned.Store(false)
+	c.mu.Lock()
+	c.returned = false
+	c.mu.Unlock()
 }
 
 func (c *pooledConn) reuse(now time.Time) {
 	c.lastUsed.Store(now.UnixNano())
-	c.returned.Store(false)
+	c.mu.Lock()
+	c.returned = false
+	c.mu.Unlock()
+}
+
+// isHalfClosed reports whether CloseWrite() has been called on this connection.
+func (c *pooledConn) isHalfClosed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.halfClosed
 }
 
 // usable performs a lightweight liveness check to avoid handing out
@@ -444,20 +470,23 @@ func (c *pooledConn) expired(now time.Time, idleTimeout, maxLifetime time.Durati
 }
 
 func (c *pooledConn) Close() error {
-	if !c.returned.CompareAndSwap(false, true) {
+	c.mu.Lock()
+	if c.returned {
+		c.mu.Unlock()
 		return nil // already returned
 	}
+	c.returned = true
+	// Read halfClosed under the same lock that CloseWrite writes it under, so
+	// a half-closed connection can never be observed as poolable.
+	halfClosed := c.halfClosed
+	c.mu.Unlock()
 
 	// Decrement active usage for this checkout
 	c.backend.activeConns.Add(-1)
 
-	if c.pool == nil {
-		return c.Conn.Close()
-	}
-
-	// Don't pool half-closed connections (CloseWrite was called)
-	// This prevents reusing connections that already sent FIN
-	if c.halfClosed.Load() {
+	// Don't pool half-closed connections (CloseWrite was called).
+	// A connection that has sent FIN cannot carry another request.
+	if c.pool == nil || halfClosed {
 		return c.Conn.Close()
 	}
 
@@ -472,19 +501,20 @@ func (c *pooledConn) Close() error {
 // This enables half-close semantics for graceful connection termination.
 //
 // Guards against double-close: if the connection was already returned to the pool,
-// CloseWrite is a no-op to prevent operating on a potentially reused connection.
+// CloseWrite is a no-op - the connection may already be serving another request,
+// and sending FIN would truncate it.
 //
-// NOTE: Calling CloseWrite() marks the connection as half-closed, preventing
-// it from being returned to the pool. This is correct because a connection that
-// has sent FIN cannot be reused for a new request.
+// Marking half-closed and issuing the FIN happen under the same lock Close()
+// uses, so the two can never interleave into "pooled but half-closed".
+// shutdown(2) does not block, so holding the lock across it is cheap.
 func (c *pooledConn) CloseWrite() error {
-	// Guard: If already returned to pool, don't call CloseWrite on underlying conn.
-	// The connection may have been reused by another goroutine.
-	if c.returned.Load() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.returned {
 		return nil
 	}
-	// Mark as half-closed so Close() won't return this to the pool
-	c.halfClosed.Store(true)
+	c.halfClosed = true
 	if tcpConn, ok := c.Conn.(*net.TCPConn); ok {
 		return tcpConn.CloseWrite()
 	}
