@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "gogate.fullname" . }}
+  name: {{ include "sluice.fullname" . }}
   labels:
-    {{- include "gogate.labels" . | nindent 4 }}
+    {{- include "sluice.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -36,4 +36,4 @@ spec:
       nodePort: {{ .Values.service.metrics.nodePort }}
       {{- end }}
   selector:
-    {{- include "gogate.selectorLabels" . | nindent 4 }}
+    {{- include "sluice.selectorLabels" . | nindent 4 }}

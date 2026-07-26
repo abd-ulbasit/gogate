@@ -104,7 +104,7 @@ func TestShippedConfigsLoad(t *testing.T) {
 // compares key names textually rather than unmarshalling.
 func TestHelmConfigMapKeysMatchSchema(t *testing.T) {
 	root := repoRoot(t)
-	path := filepath.Join(root, "deployments", "helm", "gogate", "templates", "configmap.yaml")
+	path := filepath.Join(root, "deployments", "helm", "sluice", "templates", "configmap.yaml")
 
 	data, err := os.ReadFile(path)
 	if err != nil {

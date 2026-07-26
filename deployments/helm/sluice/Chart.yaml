@@ -1,5 +1,5 @@
 apiVersion: v2
-name: gogate
+name: sluice
 description: L4/L7 Proxy & API Gateway with Service Discovery
 type: application
 version: 0.1.0
@@ -13,8 +13,8 @@ keywords:
 maintainers:
   - name: Abdul Basit
     email: basit01035@gmail.com
-home: https://github.com/abd-ulbasit/gogate
+home: https://github.com/abd-ulbasit/sluice
 sources:
-  - https://github.com/abd-ulbasit/gogate
+  - https://github.com/abd-ulbasit/sluice
 annotations:
   category: Infrastructure

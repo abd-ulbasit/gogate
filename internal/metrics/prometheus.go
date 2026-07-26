@@ -25,7 +25,7 @@ import (
 // - Pure Go implementation (no prometheus client dependency)
 // - Thread-safe for concurrent scrapes
 // - Efficient string building with strings.Builder
-// - Namespace prefix "gogate_" for all metrics
+// - Namespace prefix "sluice_" for all metrics
 //
 // Why build our own exporter?
 // The exposition format is a few hundred lines of text generation, and pulling
@@ -60,7 +60,7 @@ type PoolStatsSnapshot struct {
 func NewPrometheusExporter(collector *Collector) *PrometheusExporter {
 	return &PrometheusExporter{
 		collector: collector,
-		namespace: "gogate",
+		namespace: "sluice",
 	}
 }
 

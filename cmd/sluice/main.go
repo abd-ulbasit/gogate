@@ -11,17 +11,17 @@ import (
 	"sync"
 	"time"
 
-	"gogate/internal/backend"
-	"gogate/internal/circuitbreaker"
-	"gogate/internal/config"
-	"gogate/internal/health"
-	"gogate/internal/loadbalancer"
-	"gogate/internal/metrics"
-	"gogate/internal/middleware"
-	"gogate/internal/observability"
-	"gogate/internal/proxy"
-	"gogate/internal/ratelimiter"
-	"gogate/internal/registry"
+	"github.com/abd-ulbasit/sluice/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/circuitbreaker"
+	"github.com/abd-ulbasit/sluice/internal/config"
+	"github.com/abd-ulbasit/sluice/internal/health"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/middleware"
+	"github.com/abd-ulbasit/sluice/internal/observability"
+	"github.com/abd-ulbasit/sluice/internal/proxy"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/registry"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -52,7 +52,7 @@ func main() {
 		AddSource: cfg.Server.Logging.AddSource,
 	})
 
-	logger.Info("starting gogate",
+	logger.Info("starting sluice",
 		"listen", cfg.Server.ListenAddr,
 		"http_listen", cfg.Server.HTTPListenAddr,
 		"backends", len(cfg.Server.Backends),

@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Simple TCP echo server that self-registers with the GoGate registry and sends periodic heartbeats.
+// Simple TCP echo server that self-registers with the Sluice registry and sends periodic heartbeats.
 // Each connection echoes back what it reads.
 
 func main() {

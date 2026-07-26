@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"gogate/internal/backend"
-	"gogate/internal/circuitbreaker"
-	"gogate/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/circuitbreaker"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
 )
 
 // mockLoadBalancer returns backends in order for testing.

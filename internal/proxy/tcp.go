@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gogate/internal/circuitbreaker"
-	"gogate/internal/loadbalancer"
-	"gogate/internal/metrics"
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/circuitbreaker"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 // TCPProxy is a Layer 4 (TCP) proxy that forwards raw bytes between client and backend.

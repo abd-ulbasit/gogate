@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 // RateLimit returns a middleware that rate limits HTTP requests.

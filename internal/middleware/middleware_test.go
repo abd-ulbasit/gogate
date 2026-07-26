@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"gogate/internal/auth"
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/auth"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 func TestChain(t *testing.T) {

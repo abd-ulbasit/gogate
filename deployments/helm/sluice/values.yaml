@@ -1,4 +1,4 @@
-# Default values for gogate Helm chart
+# Default values for sluice Helm chart
 # This is a YAML-formatted file.
 
 # -- Number of replicas
@@ -6,7 +6,7 @@ replicaCount: 2
 
 image:
   # -- Container image repository
-  repository: ghcr.io/abd-ulbasit/gogate
+  repository: ghcr.io/abd-ulbasit/sluice
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Overrides the image tag (default is chart appVersion)
@@ -46,7 +46,7 @@ securityContext:
     drop:
       - ALL
 
-# GoGate configuration
+# Sluice configuration
 config:
   # -- Log level (debug, info, warn, error)
   logLevel: "info"
@@ -135,15 +135,15 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: letsencrypt
   hosts:
-    - host: gogate.local
+    - host: sluice.local
       paths:
         - path: /
           pathType: Prefix
           port: 8081
   tls: []
-    # - secretName: gogate-tls
+    # - secretName: sluice-tls
     #   hosts:
-    #     - gogate.local
+    #     - sluice.local
 
 # Resource limits
 resources:

@@ -1,4 +1,4 @@
-module gogate
+module github.com/abd-ulbasit/sluice
 
 go 1.22.0
 

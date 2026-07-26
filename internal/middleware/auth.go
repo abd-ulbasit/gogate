@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gogate/internal/auth"
+	"github.com/abd-ulbasit/sluice/internal/auth"
 )
 
 // contextKey is a custom type for context keys to avoid collisions.

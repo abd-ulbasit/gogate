@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"gogate/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/backend"
 )
 
 // =============================================================================

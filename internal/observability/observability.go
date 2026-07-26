@@ -1,5 +1,5 @@
 // Package observability provides structured logging, request tracing, and metrics
-// infrastructure for the gogate proxy.
+// infrastructure for the sluice proxy.
 //
 // Key components:
 // - Logger: Configured slog.Logger with JSON output and context enrichment

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gogate/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/backend"
 )
 
 // LoadBalancer defines the interface for selecting a backend from a pool.

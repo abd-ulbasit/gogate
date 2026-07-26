@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"gogate/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/backend"
 )
 
 // Checker performs health checks on backends.
@@ -277,7 +277,7 @@ func (c *Checker) httpCheck(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "gogate-health/1")
+	req.Header.Set("User-Agent", "sluice-health/1")
 
 	resp, err := c.httpClient().Do(req)
 	if err != nil {

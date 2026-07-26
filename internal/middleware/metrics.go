@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"gogate/internal/metrics"
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 // Metrics returns a middleware that records HTTP request metrics.

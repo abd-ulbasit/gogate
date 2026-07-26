@@ -13,10 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gogate/internal/backend"
-	"gogate/internal/circuitbreaker"
-	"gogate/internal/loadbalancer"
-	"gogate/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/circuitbreaker"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
 )
 
 // HTTPProxy is a Layer 7 (HTTP) reverse proxy.

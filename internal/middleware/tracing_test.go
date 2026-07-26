@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"gogate/internal/metrics"
-	"gogate/internal/observability"
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/observability"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 func TestTracing(t *testing.T) {

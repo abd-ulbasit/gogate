@@ -17,11 +17,11 @@ import (
 )
 
 // TCP-level load generator that sends raw HTTP requests over TCP.
-// This tests GoGate at the TCP layer while still being compatible with HTTP backends.
+// This tests Sluice at the TCP layer while still being compatible with HTTP backends.
 // Example: go run ./scripts/load-tcp -addr localhost:8080 -concurrency 50 -rate 200 -duration 30s
 
 func main() {
-	addr := flag.String("addr", "localhost:8080", "TCP address of GoGate TCP listener")
+	addr := flag.String("addr", "localhost:8080", "TCP address of Sluice TCP listener")
 	path := flag.String("path", "/get", "HTTP path to request")
 	concurrency := flag.Int("concurrency", 50, "number of worker goroutines")
 	rate := flag.Int("rate", 200, "requests per second total")

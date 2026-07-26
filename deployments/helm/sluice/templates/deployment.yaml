@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "gogate.fullname" . }}
+  name: {{ include "sluice.fullname" . }}
   labels:
-    {{- include "gogate.labels" . | nindent 4 }}
+    {{- include "sluice.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "gogate.selectorLabels" . | nindent 6 }}
+      {{- include "sluice.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -19,24 +19,24 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "gogate.selectorLabels" . | nindent 8 }}
+        {{- include "sluice.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "gogate.serviceAccountName" . }}
+      serviceAccountName: {{ include "sluice.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: {{ include "gogate.image" . }}
+          image: {{ include "sluice.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - "-config"
-            - "/etc/gogate/config.yaml"
+            - "/etc/sluice/config.yaml"
           ports:
             - name: tcp-proxy
               containerPort: 8080
@@ -60,12 +60,12 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: /etc/gogate
+              mountPath: /etc/sluice
               readOnly: true
       volumes:
         - name: config
           configMap:
-            name: {{ include "gogate.fullname" . }}-config
+            name: {{ include "sluice.fullname" . }}-config
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

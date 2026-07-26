@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"gogate/internal/backend"
-	"gogate/internal/circuitbreaker"
-	"gogate/internal/loadbalancer"
-	"gogate/internal/metrics"
-	"gogate/internal/ratelimiter"
+	"github.com/abd-ulbasit/sluice/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/circuitbreaker"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/metrics"
+	"github.com/abd-ulbasit/sluice/internal/ratelimiter"
 )
 
 // TestTCPProxyBasicForwarding verifies data flows correctly through the proxy.

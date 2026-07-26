@@ -15,7 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gogate/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
 )
 
 var (

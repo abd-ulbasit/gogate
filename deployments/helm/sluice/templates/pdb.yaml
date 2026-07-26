@@ -2,13 +2,13 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "gogate.fullname" . }}
+  name: {{ include "sluice.fullname" . }}
   labels:
-    {{- include "gogate.labels" . | nindent 4 }}
+    {{- include "sluice.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "gogate.selectorLabels" . | nindent 6 }}
+      {{- include "sluice.selectorLabels" . | nindent 6 }}
   {{- if .Values.podDisruptionBudget.minAvailable }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   {{- end }}

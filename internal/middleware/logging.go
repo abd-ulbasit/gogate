@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"gogate/internal/router"
+	"github.com/abd-ulbasit/sluice/internal/router"
 )
 
 // responseWriter wraps http.ResponseWriter to capture status code and bytes.

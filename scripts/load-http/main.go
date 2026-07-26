@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Lightweight HTTP load generator for GoGate.
+// Lightweight HTTP load generator for Sluice.
 // Example: go run ./scripts/load-http -target http://localhost:8080/echo -concurrency 50 -rate 200 -duration 30s
 
 func main() {

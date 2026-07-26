@@ -2,19 +2,19 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "gogate.fullname" . }}
+  name: {{ include "sluice.fullname" . }}
   {{- if .Values.serviceMonitor.namespace }}
   namespace: {{ .Values.serviceMonitor.namespace }}
   {{- end }}
   labels:
-    {{- include "gogate.labels" . | nindent 4 }}
+    {{- include "sluice.labels" . | nindent 4 }}
     {{- with .Values.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
   selector:
     matchLabels:
-      {{- include "gogate.selectorLabels" . | nindent 6 }}
+      {{- include "sluice.selectorLabels" . | nindent 6 }}
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}

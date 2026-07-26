@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"gogate/internal/backend"
-	"gogate/internal/loadbalancer"
+	"github.com/abd-ulbasit/sluice/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/loadbalancer"
 )
 
 // mockLoadBalancer implements loadbalancer.LoadBalancer for testing.

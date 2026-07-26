@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"gogate/internal/observability"
-	"gogate/internal/router"
+	"github.com/abd-ulbasit/sluice/internal/observability"
+	"github.com/abd-ulbasit/sluice/internal/router"
 )
 
 // Tracing returns a middleware that adds request tracing.

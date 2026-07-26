@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Simple HTTP echo server that self-registers with the GoGate registry and sends periodic heartbeats.
+// Simple HTTP echo server that self-registers with the Sluice registry and sends periodic heartbeats.
 // Run multiple instances on different ports to act as demo backends.
 
 func main() {

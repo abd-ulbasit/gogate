@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"gogate/internal/backend"
+	"github.com/abd-ulbasit/sluice/internal/backend"
 )
 
 // startTestServer starts a simple TCP server that accepts connections.

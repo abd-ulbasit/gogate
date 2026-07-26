@@ -36,8 +36,8 @@ import (
 // Skipped by default - it opens tens of thousands of file descriptors and is not
 // something CI should do on every push.
 //
-//	GOGATE_CAPACITY=10000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 20m
-//	GOGATE_CAPACITY=10000 GOGATE_CAPACITY_DIRECT=1 \
+//	SLUICE_CAPACITY=10000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 20m
+//	SLUICE_CAPACITY=10000 SLUICE_CAPACITY_DIRECT=1 \
 //	    go test ./internal/proxy -run ConnectionCapacity -v -timeout 20m
 //
 // Every logical connection costs 4 descriptors in proxied mode (client socket,
@@ -45,15 +45,15 @@ import (
 // and 2 in direct mode, so raise the file descriptor limit before running at
 // five figures.
 func TestTCPProxyConnectionCapacity(t *testing.T) {
-	target := os.Getenv("GOGATE_CAPACITY")
+	target := os.Getenv("SLUICE_CAPACITY")
 	if target == "" {
-		t.Skip("set GOGATE_CAPACITY=<n> to run the connection capacity harness")
+		t.Skip("set SLUICE_CAPACITY=<n> to run the connection capacity harness")
 	}
 	n, err := strconv.Atoi(target)
 	if err != nil || n <= 0 {
-		t.Fatalf("GOGATE_CAPACITY must be a positive integer, got %q", target)
+		t.Fatalf("SLUICE_CAPACITY must be a positive integer, got %q", target)
 	}
-	direct := os.Getenv("GOGATE_CAPACITY_DIRECT") != ""
+	direct := os.Getenv("SLUICE_CAPACITY_DIRECT") != ""
 
 	echo := mustStartEchoServer()
 	defer echo.Close()

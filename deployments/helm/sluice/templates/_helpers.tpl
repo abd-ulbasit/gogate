@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "gogate.name" -}}
+{{- define "sluice.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "gogate.fullname" -}}
+{{- define "sluice.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "gogate.chart" -}}
+{{- define "sluice.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "gogate.labels" -}}
-helm.sh/chart: {{ include "gogate.chart" . }}
-{{ include "gogate.selectorLabels" . }}
+{{- define "sluice.labels" -}}
+helm.sh/chart: {{ include "sluice.chart" . }}
+{{ include "sluice.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,17 +43,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "gogate.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "gogate.name" . }}
+{{- define "sluice.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "sluice.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "gogate.serviceAccountName" -}}
+{{- define "sluice.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "gogate.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "sluice.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -62,7 +62,7 @@ Create the name of the service account to use
 {{/*
 Create the image name
 */}}
-{{- define "gogate.image" -}}
+{{- define "sluice.image" -}}
 {{- $tag := default .Chart.AppVersion .Values.image.tag -}}
 {{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end }}

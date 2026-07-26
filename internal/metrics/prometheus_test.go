@@ -29,20 +29,20 @@ func TestPrometheusExporter_Export(t *testing.T) {
 
 	// Check for required metric types
 	requiredMetrics := []string{
-		"# HELP gogate_connections_total",
-		"# TYPE gogate_connections_total counter",
-		"gogate_connections_total 2",
-		"# HELP gogate_connections_active",
-		"gogate_connections_active 1",
-		"# HELP gogate_requests_total",
-		"gogate_requests_total{status=\"success\"} 2",
-		"gogate_requests_total{status=\"failure\"} 1",
-		"# HELP gogate_backend_requests_total",
-		"gogate_backend_requests_total{backend=\"backend1:8080\",status=\"success\"} 1",
-		"gogate_backend_requests_total{backend=\"backend1:8080\",status=\"failure\"} 1",
-		"gogate_backend_requests_total{backend=\"backend2:8080\",status=\"success\"} 1",
-		"# HELP gogate_uptime_seconds",
-		"# TYPE gogate_uptime_seconds gauge",
+		"# HELP sluice_connections_total",
+		"# TYPE sluice_connections_total counter",
+		"sluice_connections_total 2",
+		"# HELP sluice_connections_active",
+		"sluice_connections_active 1",
+		"# HELP sluice_requests_total",
+		"sluice_requests_total{status=\"success\"} 2",
+		"sluice_requests_total{status=\"failure\"} 1",
+		"# HELP sluice_backend_requests_total",
+		"sluice_backend_requests_total{backend=\"backend1:8080\",status=\"success\"} 1",
+		"sluice_backend_requests_total{backend=\"backend1:8080\",status=\"failure\"} 1",
+		"sluice_backend_requests_total{backend=\"backend2:8080\",status=\"success\"} 1",
+		"# HELP sluice_uptime_seconds",
+		"# TYPE sluice_uptime_seconds gauge",
 	}
 
 	for _, metric := range requiredMetrics {
@@ -73,10 +73,10 @@ func TestPrometheusExporter_BackendHealth(t *testing.T) {
 	output := buf.String()
 
 	// Check health metrics
-	if !strings.Contains(output, "gogate_backend_health{backend=\"backend1:8080\"} 1") {
+	if !strings.Contains(output, "sluice_backend_health{backend=\"backend1:8080\"} 1") {
 		t.Errorf("missing healthy backend metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_backend_health{backend=\"backend2:8080\"} 0") {
+	if !strings.Contains(output, "sluice_backend_health{backend=\"backend2:8080\"} 0") {
 		t.Errorf("missing unhealthy backend metric\nOutput:\n%s", output)
 	}
 }
@@ -103,13 +103,13 @@ func TestPrometheusExporter_CircuitBreaker(t *testing.T) {
 	output := buf.String()
 
 	// Check circuit breaker metrics
-	if !strings.Contains(output, "gogate_circuit_breaker_state{backend=\"backend1:8080\"} 0") {
+	if !strings.Contains(output, "sluice_circuit_breaker_state{backend=\"backend1:8080\"} 0") {
 		t.Errorf("missing closed CB metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_circuit_breaker_state{backend=\"backend2:8080\"} 1") {
+	if !strings.Contains(output, "sluice_circuit_breaker_state{backend=\"backend2:8080\"} 1") {
 		t.Errorf("missing open CB metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_circuit_breaker_state{backend=\"backend3:8080\"} 2") {
+	if !strings.Contains(output, "sluice_circuit_breaker_state{backend=\"backend3:8080\"} 2") {
 		t.Errorf("missing half-open CB metric\nOutput:\n%s", output)
 	}
 }
@@ -131,10 +131,10 @@ func TestPrometheusExporter_RateLimiter(t *testing.T) {
 
 	output := buf.String()
 
-	if !strings.Contains(output, "gogate_rate_limiter_requests_total{result=\"allowed\"} 1000") {
+	if !strings.Contains(output, "sluice_rate_limiter_requests_total{result=\"allowed\"} 1000") {
 		t.Errorf("missing allowed rate limiter metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_rate_limiter_requests_total{result=\"rejected\"} 50") {
+	if !strings.Contains(output, "sluice_rate_limiter_requests_total{result=\"rejected\"} 50") {
 		t.Errorf("missing rejected rate limiter metric\nOutput:\n%s", output)
 	}
 }
@@ -158,13 +158,13 @@ func TestPrometheusExporter_PoolStats(t *testing.T) {
 
 	output := buf.String()
 
-	if !strings.Contains(output, "gogate_pool_hits_total{backend=\"backend1:8080\"} 100") {
+	if !strings.Contains(output, "sluice_pool_hits_total{backend=\"backend1:8080\"} 100") {
 		t.Errorf("missing pool hits metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_pool_misses_total{backend=\"backend1:8080\"} 20") {
+	if !strings.Contains(output, "sluice_pool_misses_total{backend=\"backend1:8080\"} 20") {
 		t.Errorf("missing pool misses metric\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_pool_size{backend=\"backend1:8080\"} 5") {
+	if !strings.Contains(output, "sluice_pool_size{backend=\"backend1:8080\"} 5") {
 		t.Errorf("missing pool size metric\nOutput:\n%s", output)
 	}
 }
@@ -190,13 +190,13 @@ func TestPrometheusExporter_Histogram(t *testing.T) {
 	output := buf.String()
 
 	// Check histogram format
-	if !strings.Contains(output, "# TYPE gogate_request_duration_seconds histogram") {
+	if !strings.Contains(output, "# TYPE sluice_request_duration_seconds histogram") {
 		t.Errorf("missing histogram type declaration\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_request_duration_seconds_bucket{le=") {
+	if !strings.Contains(output, "sluice_request_duration_seconds_bucket{le=") {
 		t.Errorf("missing histogram buckets\nOutput:\n%s", output)
 	}
-	if !strings.Contains(output, "gogate_request_duration_seconds_count") {
+	if !strings.Contains(output, "sluice_request_duration_seconds_count") {
 		t.Errorf("missing histogram count\nOutput:\n%s", output)
 	}
 }
