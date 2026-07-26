@@ -132,8 +132,9 @@ are load-independent and stand.
 <details>
 <summary>A benchmark that was measuring nothing at all</summary>
 
-`BenchmarkCopyBufferWithPool` reported **448,052 MB/s**. Nothing memcpys at
-448 GB/s.
+`BenchmarkCopyBufferWithPool` reported **448,052 MB/s** — roughly 7x what the
+corrected benchmark measures for a cache-resident copy on this machine, and past
+its DRAM bandwidth. The number was the bug report.
 
 It copied a `bytes.Reader` into `io.Discard`. `bytes.Reader` implements
 `io.WriterTo` and `io.Discard` implements `io.ReaderFrom`, so `io.CopyBuffer`
@@ -142,7 +143,12 @@ timing the allocation of an unused 32 KB slice.
 
 Both ends are now wrapped in types that hide those interfaces, and
 `TestCopyBufferBenchmarkUsesTheBuffer` poisons the buffer and fails if the copy
-leaves it untouched. Corrected: 7.3-9.8 µs/op at 6.7-9.0 GB/s.
+leaves it untouched.
+
+The corrected benchmark's own ns/op moves 6-7x with machine load, so no latency
+figure from it is quoted here. Its allocation counts are identical across every
+run, which is why the table above quotes those.
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md#copy-path) prints both load states.
 </details>
 
 ---

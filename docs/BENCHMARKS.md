@@ -11,12 +11,13 @@ than rounded away.
 | Machine | Apple M1 Pro, 8 cores, macOS 26.5.2 |
 | Go | 1.26.2 darwin/arm64 |
 | Topology | client, proxy and backend in one process over loopback |
-| Load average during runs | 21-30 (the machine was **not** idle) |
+| Load average during runs | 7, and 21-30 (the machine was **not** idle in either case) |
 
-The load average matters. Absolute latency figures below carry several hundred
-percent of run-to-run variance and should be read as "same order of magnitude",
-not as a specification. The allocation counts and the capacity ceiling are not
-affected by machine load and are reliable.
+The load average matters, and it is stated next to every timing figure below
+because the copy-path benchmark moves 6-7x between those two states while its
+allocation counts do not move at all. Read the absolute latency figures as "same
+order of magnitude", not as a specification. The allocation counts and the
+capacity ceiling are unaffected by machine load and are reliable.
 
 ## Concurrent connection capacity
 
@@ -110,15 +111,33 @@ claimed.**
 go test ./internal/proxy -bench BenchmarkCopyBuffer -benchmem -benchtime=2s -count=3
 ```
 
+64 KB payload, 32 KB buffer, so roughly two buffer fills per operation.
+
+The same command was run twice, weeks apart, on the same machine in two states.
+Both sets are printed because the disagreement between them is the point:
+
 | | ns/op | throughput | B/op | allocs/op |
 |---|---|---|---|---|
+| **load average 7** (5 runs) | | | | |
+| `CopyBufferWithPool` | 1,027 - 1,232 | 53 - 64 GB/s | 72 | 3 |
+| `CopyBufferNoPool` | 5,378 - 5,981 | 11.0 - 12.2 GB/s | 32,840 | 4 |
+| **load average 21-30** (3 runs) | | | | |
 | `CopyBufferWithPool` | 7,318 - 9,789 | 6.7 - 9.0 GB/s | 72 | 3 |
 | `CopyBufferNoPool` | 27,990 - 74,438 | 0.9 - 2.3 GB/s | 32,840 | 4 |
 
-64 KB payload, 32 KB buffer, so roughly two buffer fills per operation.
+**The ns/op figures move by 6-7x with nothing but machine load. The B/op and
+allocs/op figures are bit-identical across every run in both sets.** That is why
+this document leads with allocation counts and refuses to publish a headline
+latency number: one of these two columns is a property of the code and the other
+is a property of the afternoon.
 
-**Allocation is the reliable figure: 32,840 B/op down to 72 B/op.** The latency
-ratio moves with machine load; the allocation count does not.
+**The result that reproduces: 32,840 B/op down to 72 B/op.** Both states also
+agree that pooling is roughly 5x faster on this path, which is the most that
+should be read off the ns/op column.
+
+The throughput figures are cache-resident copies — a 64 KB payload and a 32 KB
+buffer both sit in L2 — so tens of GB/s is expected and is not a claim about
+sustained DRAM bandwidth.
 
 ### This benchmark used to measure nothing
 
@@ -126,7 +145,8 @@ It previously copied a `bytes.Reader` into `io.Discard` and reported
 **448,052 MB/s**. `bytes.Reader` implements `io.WriterTo` and `io.Discard`
 implements `io.ReaderFrom`, so `io.CopyBuffer` took a shortcut and never touched
 the buffer it was handed — it was timing the allocation of an unused 32 KB slice.
-Nothing memcpys at 448 GB/s, which is what gave it away.
+448 GB/s is what gave it away: roughly 7x what the corrected benchmark reports
+for a cache-resident copy on this machine, and well past its DRAM bandwidth.
 
 The fix wraps both ends in types that hide those interfaces.
 `TestCopyBufferBenchmarkUsesTheBuffer` poisons the buffer and fails if the copy
