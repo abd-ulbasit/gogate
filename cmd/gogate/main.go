@@ -130,10 +130,11 @@ func main() {
 	// Circuit breaker (optional)
 	if cfg.Server.CircuitBreaker.Enabled {
 		cbConfig := circuitbreaker.Config{
-			FailureThreshold: cfg.Server.CircuitBreaker.FailureThreshold,
-			SuccessThreshold: cfg.Server.CircuitBreaker.SuccessThreshold,
-			Timeout:          cfg.Server.CircuitBreaker.Timeout,
-			Window:           cfg.Server.CircuitBreaker.Window,
+			FailureThreshold:    cfg.Server.CircuitBreaker.FailureThreshold,
+			SuccessThreshold:    cfg.Server.CircuitBreaker.SuccessThreshold,
+			MaxHalfOpenRequests: cfg.Server.CircuitBreaker.MaxHalfOpenRequests,
+			Timeout:             cfg.Server.CircuitBreaker.Timeout,
+			Window:              cfg.Server.CircuitBreaker.Window,
 		}
 		proxyOpts = append(proxyOpts, proxy.WithCircuitBreaker(cbConfig))
 		logger.Info("circuit breaker enabled",

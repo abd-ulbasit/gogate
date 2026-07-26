@@ -10,7 +10,7 @@ import (
 )
 
 // Config represents the proxy configuration.
-// For Week 1, we keep it simple: single backend.
+// For Milestone 1, we keep it simple: single backend.
 type Config struct {
 	Server ServerConfig `yaml:"server"`
 }
@@ -83,6 +83,10 @@ type CircuitBreakerConfig struct {
 	SuccessThreshold int           `yaml:"success_threshold"` // Successes in half-open to close
 	Timeout          time.Duration `yaml:"timeout"`           // Time before half-open
 	Window           time.Duration `yaml:"window"`            // Failure counting window
+
+	// MaxHalfOpenRequests caps how many probe requests reach a recovering
+	// backend at once. Defaults to SuccessThreshold.
+	MaxHalfOpenRequests int `yaml:"max_half_open_requests"`
 }
 
 // TCPPoolConfig controls backend TCP connection pooling.
