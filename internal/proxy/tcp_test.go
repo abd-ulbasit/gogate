@@ -1001,16 +1001,68 @@ func mustStartEchoServer() net.Listener {
 	return listener
 }
 
-// Benchmarks: quantify buffer pooling improvements for copy operations.
-// These benchmarks isolate the copy path used by the TCP proxy to show
-// allocations/op differences when using sync.Pool-backed buffers vs fresh
-// allocations each call.
+// Benchmarks: quantify buffer pooling for the proxy's copy path.
+//
+// io.CopyBuffer only uses the buffer you hand it when neither side offers a
+// shortcut. If src implements io.WriterTo it calls src.WriteTo(dst); if dst
+// implements io.ReaderFrom it calls dst.ReadFrom(src). Either way the buffer is
+// never touched.
+//
+// The obvious way to write this benchmark - bytes.Reader into io.Discard - hits
+// both shortcuts at once, so it measures the cost of allocating a 32 KB buffer
+// that the copy then ignores. It reported ~448,000 MB/s, which is the tell: no
+// memcpy runs at 448 GB/s.
+//
+// plainReader and plainWriter exist to defeat both shortcuts, so the copy runs
+// the read-into-buffer, write-out-of-buffer loop the proxy actually executes.
+// TestCopyBufferBenchmarkUsesTheBuffer asserts they still do.
+
+// plainReader hides any WriteTo method its wrapped reader may have.
+type plainReader struct{ r io.Reader }
+
+func (p *plainReader) Read(b []byte) (int, error) { return p.r.Read(b) }
+
+// plainWriter counts bytes and offers no ReadFrom shortcut.
+type plainWriter struct{ n int64 }
+
+func (p *plainWriter) Write(b []byte) (int, error) { p.n += int64(len(b)); return len(b), nil }
 
 // Using *[]byte to avoid allocations in type assertion (SA6002)
 var benchCopyBufPool = sync.Pool{New: func() any {
 	b := make([]byte, 32*1024)
 	return &b
 }}
+
+// TestCopyBufferBenchmarkUsesTheBuffer guards the benchmarks below against
+// silently reverting to measuring nothing. It poisons the buffer and checks the
+// copy overwrote it.
+func TestCopyBufferBenchmarkUsesTheBuffer(t *testing.T) {
+	payload := bytes.Repeat([]byte("x"), 64*1024)
+	buf := make([]byte, 32*1024)
+	for i := range buf {
+		buf[i] = 0xAB
+	}
+
+	// The shortcut path: the buffer is left untouched.
+	if _, err := io.CopyBuffer(io.Discard, bytes.NewReader(payload), buf); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if buf[0] != 0xAB {
+		t.Log("note: io.CopyBuffer used the buffer for bytes.Reader -> io.Discard; " +
+			"the stdlib shortcut this benchmark works around may have changed")
+	}
+
+	// The path the benchmarks use: the buffer must be written through.
+	for i := range buf {
+		buf[i] = 0xAB
+	}
+	if _, err := io.CopyBuffer(&plainWriter{}, &plainReader{bytes.NewReader(payload)}, buf); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if buf[0] == 0xAB {
+		t.Fatal("io.CopyBuffer did not use the supplied buffer; the copy benchmarks measure allocation only")
+	}
+}
 
 func BenchmarkCopyBufferWithPool(b *testing.B) {
 	benchmarkCopyBuffer(b, true)
@@ -1021,12 +1073,15 @@ func BenchmarkCopyBufferNoPool(b *testing.B) {
 }
 
 func benchmarkCopyBuffer(b *testing.B, pooled bool) {
-	payload := bytes.Repeat([]byte("x"), 64*1024) // 64KB payload simulating typical TCP chunking
+	payload := bytes.Repeat([]byte("x"), 64*1024) // 64KB payload, ~2 buffer fills
 	b.ReportAllocs()
 	b.SetBytes(int64(len(payload)))
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		reader := bytes.NewReader(payload)
+		src := &plainReader{bytes.NewReader(payload)}
+		dst := &plainWriter{}
+
 		var buf []byte
 		var bufPtr *[]byte
 		if pooled {
@@ -1036,8 +1091,11 @@ func benchmarkCopyBuffer(b *testing.B, pooled bool) {
 			buf = make([]byte, 32*1024)
 		}
 
-		if _, err := io.CopyBuffer(io.Discard, reader, buf); err != nil {
+		if _, err := io.CopyBuffer(dst, src, buf); err != nil {
 			b.Fatalf("copy failed: %v", err)
+		}
+		if dst.n != int64(len(payload)) {
+			b.Fatalf("copied %d bytes, want %d", dst.n, len(payload))
 		}
 
 		if pooled && bufPtr != nil {
