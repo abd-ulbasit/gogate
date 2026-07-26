@@ -366,11 +366,20 @@ func TestPooledConnCloseWriteAfterReturnIsNoOp(t *testing.T) {
 //
 // The window is too narrow to hit reliably without scheduler noise, so this test
 // runs many trials and asserts the invariant rather than a specific interleaving:
-// a connection marked half-closed must never be sitting in the idle pool. Against
-// the pre-fix implementation it reports violations under `go test -race`
-// (the CI configuration), typically ~10-20 out of 50k trials.
+// a connection marked half-closed must never be sitting in the idle pool.
+//
+// It counts violations across all trials instead of stopping at the first one,
+// so a run against a broken implementation reports how often the race fires
+// rather than only that it did. Measured against the pre-fix implementation:
+// 165-214 violations per 50k trials under `go test -race` (the CI
+// configuration), and 1-3 without it. The bug is reachable either way; the
+// detector widens the window by about two orders of magnitude, which is why CI
+// runs with it on.
 func TestPooledConnConcurrentCloseAndCloseWrite(t *testing.T) {
 	const trials = 50000
+	const maxReported = 10 // log the first few; the total is what matters
+
+	violations := 0
 
 	for i := 0; i < trials; i++ {
 		pc, p, cleanup := newTestPooledConn(t, 1)
@@ -393,8 +402,10 @@ func TestPooledConnConcurrentCloseAndCloseWrite(t *testing.T) {
 
 		pooled := len(p.idle) == 1
 		if pooled && pc.isHalfClosed() {
-			cleanup()
-			t.Fatalf("trial %d: connection is both half-closed and sitting in the idle pool", i)
+			violations++
+			if violations <= maxReported {
+				t.Errorf("trial %d: connection is both half-closed and sitting in the idle pool", i)
+			}
 		}
 		// A pooled connection would be handed to the next caller; drain it.
 		select {
@@ -403,5 +414,10 @@ func TestPooledConnConcurrentCloseAndCloseWrite(t *testing.T) {
 		default:
 		}
 		cleanup()
+	}
+
+	if violations > 0 {
+		t.Fatalf("invariant violated in %d of %d trials: a half-closed connection was left in the idle pool",
+			violations, trials)
 	}
 }

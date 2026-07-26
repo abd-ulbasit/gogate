@@ -171,12 +171,28 @@ The pooling decision depends on both facts, so both now live under one mutex.
 These are once-per-connection operations, not per-byte, so the lock is nowhere
 near the copy path.
 
-The window is a few instructions wide and does not reproduce on a quiet
-scheduler. `TestPooledConnConcurrentCloseAndCloseWrite` runs 50,000 trials and
-asserts the invariant — half-closed implies not pooled — rather than any
-particular interleaving. Against the previous implementation it reports 10-20
-violations per run under `go test -race`, and zero without it. That is the
-argument for `-race` in CI in one sentence.
+The window is a few instructions wide. `TestPooledConnConcurrentCloseAndCloseWrite`
+runs 50,000 trials, counts every violation of the invariant — half-closed implies
+not pooled — and reports the total rather than stopping at the first one. It
+asserts the invariant rather than any particular interleaving, so it stays
+meaningful if the scheduling changes.
+
+Run against the previous implementation on this machine:
+
+| | violations / 50,000 trials |
+|---|---|
+| `go test` | 1, 2, 2, 2, 3, 1 (six runs) |
+| `go test -race` | 214, 165, 211 (three runs) |
+
+Counting rather than aborting on the first violation is what makes that table
+possible; the first version of this test called `t.Fatalf` inside the loop and
+could only ever report "1".
+
+The bug is there in both columns — this is not a race the detector invents. What
+`-race` changes is the odds: without it the invariant breaks roughly once per
+20,000 attempts, which in production is an occasional truncated response that
+looks like a network flake and never reproduces on demand. That ratio is the
+argument for `-race` in CI in one line.
 
 ## Connection pooling and its liveness check
 

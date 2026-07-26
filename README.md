@@ -75,10 +75,21 @@ The pooling decision depends on both facts, so both now live under one mutex.
 They are once-per-connection operations, nowhere near the byte-copy path.
 
 The window is a few instructions wide.
-`TestPooledConnConcurrentCloseAndCloseWrite` runs 50,000 trials and asserts the
-invariant — half-closed implies not pooled — rather than any particular
-interleaving. Against the previous implementation it reports 10-20 violations per
-run under `go test -race`, and **zero without it**.
+`TestPooledConnConcurrentCloseAndCloseWrite` runs 50,000 trials, counts every
+violation of the invariant — half-closed implies not pooled — and reports the
+total. It asserts the invariant rather than any particular interleaving.
+
+Run against the previous implementation, the count is the argument for `-race`
+in CI:
+
+| | violations / 50,000 trials |
+|---|---|
+| `go test` | 1 - 3 (six runs) |
+| `go test -race` | 165 - 214 (three runs) |
+
+The bug is present in both columns; the detector widens the window by roughly
+two orders of magnitude. Without it, a real race shows up once per 20,000
+attempts and looks like a flake.
 
 > [`internal/backend/backend.go`](internal/backend/backend.go)
 > · [test](internal/backend/backend_test.go)
@@ -310,7 +321,7 @@ so one layer's failures must not eject it from the other.
 ## Development
 
 ```bash
-go test -race ./...          # what CI runs; two regression tests only fail under -race
+go test -race ./...          # what CI runs; the pooled-connection race needs -race to show reliably
 go test ./... -bench=. -benchmem
 GOGATE_CAPACITY=8000 go test ./internal/proxy -run ConnectionCapacity -v -timeout 15m
 ```
