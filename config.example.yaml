@@ -79,8 +79,12 @@ server:
   # Reuse of idle TCP connections to backends, for the L4 path. Connections are
   # liveness-checked before reuse (zero read deadline + 1-byte read), so a
   # backend that closed an idle connection does not surface as a failed request.
+  # Off by default. On the L4 path this can never register a hit: each copy
+  # direction half-closes its destination and a half-closed connection is not
+  # poolable, so enabling it only adds bookkeeping. See the observability
+  # section of the README for why making it work is the wrong trade.
   tcp_pool:
-    enabled: true
+    enabled: false
     max_idle: 128
     idle_timeout: 30s
     max_lifetime: 2m

@@ -296,9 +296,27 @@ misspelled optional key disables a feature with no error and no log line.
 sluice_backend_health{backend="10.0.0.5:8080"} 1
 sluice_circuit_breaker_state{backend="10.0.0.5:8080"} 0   # 0=closed 1=open 2=half-open
 sluice_rate_limiter_requests_total{result="rejected"} 0
-sluice_pool_hits_total{backend="10.0.0.5:8080"} 4821
+sluice_pool_hits_total{backend="10.0.0.5:8080"} 0
+sluice_pool_misses_total{backend="10.0.0.5:8080"} 0
 sluice_request_duration_seconds_bucket{le="0.05"} 19204
 ```
+
+### The L4 pool hit counter stays at zero, by construction
+
+Not a misconfiguration. Each copy direction ends by half-closing its
+destination (`internal/proxy/tcp.go`, the `CloseWrite` after the copy loop),
+and a half-closed connection is never returned to the pool. That second half is
+asserted by `TestPooledConnHalfClosedIsNotPooled` in
+`internal/backend/backend_test.go`. Put together, every L4 request dials a
+fresh backend socket, so the hit counter cannot move on that path.
+
+Making it move means not forwarding the client's FIN to the backend. That was
+tried and it is worse than an idle counter: a client that half-closes and then
+waits receives an empty response, and because the abandoned socket is returned
+to the pool with a reply still owed on it, the next client can be served the
+previous client's response body. Both were reproduced before the change was
+reverted. Connection reuse is not worth a protocol-visible correctness bug, so
+the pool remains useful on the L7 path and the L4 counter stays honest.
 
 Admin API: `GET /health`, `GET /stats`, `GET /backends`.
 
