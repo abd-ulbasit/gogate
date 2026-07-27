@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/abd-ulbasit/sluice/actions"><img src="https://github.com/abd-ulbasit/sluice/workflows/CI/badge.svg" alt="CI Status"></a>
-  <a href="https://goreportcard.com/report/github.com/abd-ulbasit/sluice"><img src="https://goreportcard.com/badge/github.com/abd-ulbasit/sluice" alt="Go Report Card"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
