@@ -2,8 +2,12 @@ apiVersion: v2
 name: sluice
 description: L4/L7 Proxy & API Gateway with Service Discovery
 type: application
-version: 0.1.0
-appVersion: "1.0.0"
+version: 0.1.1
+# Must be a tag that exists in ghcr.io/abd-ulbasit/sluice: with image.tag
+# unset, _helpers.tpl resolves the image to <repository>:<appVersion>. The CI
+# docker job publishes {{version}} for every pushed v* tag, so this tracks the
+# release tag.
+appVersion: "1.0.1"
 keywords:
   - proxy
   - gateway

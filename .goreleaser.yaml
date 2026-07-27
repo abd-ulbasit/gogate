@@ -3,6 +3,11 @@
 
 version: 1
 
+# Set explicitly. Left unset, GoReleaser infers it, and the archive
+# name_template below interpolates whatever it inferred — which is how v1.0.0
+# shipped as gogate_1.0.0_linux_amd64.tar.gz.
+project_name: sluice
+
 before:
   hooks:
     - go mod tidy
