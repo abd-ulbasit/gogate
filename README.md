@@ -400,8 +400,9 @@ asking what N callers arriving in the same microsecond would do;
 `BenchmarkCopyBufferWithPool` was caught because 448,052 MB/s is past this
 machine's DRAM bandwidth, not because anything failed; and the L4 hit counter
 stays at zero because the change that would have moved it was written,
-reproduced against a real client, and reverted — that branch is still pushed so
-the revert is inspectable rather than asserted. If you want to judge the
+reproduced against a real client, and reverted —
+[`attempted/tcp-pool-reuse`](https://github.com/abd-ulbasit/sluice/tree/attempted/tcp-pool-reuse)
+is still pushed so that revert is inspectable rather than asserted. If you want to judge the
 engineering rather than the tooling, read
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md), which still prints the numbers that
 contradicted the claims they were meant to support, and
