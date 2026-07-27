@@ -79,6 +79,11 @@ server:
   # Reuse of idle TCP connections to backends, for the L4 path. Connections are
   # liveness-checked before reuse (zero read deadline + 1-byte read), so a
   # backend that closed an idle connection does not surface as a failed request.
+  #
+  # Enabling this stops the L4 path forwarding the client's FIN to the backend,
+  # because a socket that has sent FIN can never be reused and the pool would
+  # stay permanently empty. Leave it off for backends that delimit a request by
+  # reading to EOF: they would wait for a FIN that no longer arrives.
   tcp_pool:
     enabled: true
     max_idle: 128

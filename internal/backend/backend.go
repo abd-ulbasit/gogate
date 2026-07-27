@@ -412,6 +412,20 @@ func (c *pooledConn) reuse(now time.Time) {
 	c.mu.Unlock()
 }
 
+// Poolable reports whether Close() will try to hand this connection back to an
+// idle pool rather than tear it down.
+//
+// This exists so a caller can tell the difference before it decides to send
+// FIN. CloseWrite() and pooling are mutually exclusive by construction: a
+// socket that has sent FIN cannot carry another request, so Close() drops it.
+// A caller that half-closes every connection it finishes with therefore
+// guarantees a permanently empty pool. Consulting Poolable() first lets the L4
+// proxy suppress the FIN on exactly the connections the pool owns, and keep
+// forwarding it on every other connection.
+func (c *pooledConn) Poolable() bool {
+	return c.pool != nil
+}
+
 // isHalfClosed reports whether CloseWrite() has been called on this connection.
 func (c *pooledConn) isHalfClosed() bool {
 	c.mu.Lock()

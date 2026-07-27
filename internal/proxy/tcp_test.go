@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -318,6 +319,199 @@ func TestTCPProxyHalfClose(t *testing.T) {
 	if got := string(buf); got != msg {
 		t.Errorf("expected %q, got %q", msg, got)
 	}
+}
+
+// TestTCPProxyReusesPooledBackendConnections is the regression test for the
+// L4 pool's structural 0% hit rate.
+//
+// The copy loop used to call CloseWrite() on whichever connection it had just
+// finished writing to, unconditionally. For the client→backend direction that
+// dst is the pooled backend connection, so every proxied connection ended with
+// a FIN sent to the backend. pooledConn.Close() then refuses to pool a
+// half-closed socket, because a socket that has sent FIN can never carry
+// another request. The result was that the pool was never populated: every
+// dial missed, and sluice_pool_hits_total could only ever report zero.
+//
+// The assertion is deliberately about the backend's accept count rather than
+// the hit counter alone: a pool that reports hits without actually saving a
+// TCP handshake would be just as dishonest.
+func TestTCPProxyReusesPooledBackendConnections(t *testing.T) {
+	var accepted atomic.Int64
+	bListener := startCountingEchoServer(t, &accepted)
+	defer bListener.Close()
+
+	b := backend.NewBackend(bListener.Addr().String())
+	poolCfg := backend.DefaultPoolConfig()
+	b.EnablePooling(&poolCfg)
+	lb := loadbalancer.NewRoundRobin([]*backend.Backend{b})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	proxy := NewTCPProxy(":0", lb, logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := proxy.Start(ctx); err != nil {
+		t.Fatalf("failed to start proxy: %v", err)
+	}
+	<-proxy.Ready()
+	defer proxy.Stop(context.Background())
+
+	const clients = 5
+	for i := 0; i < clients; i++ {
+		client, err := net.Dial("tcp", proxy.Addr())
+		if err != nil {
+			t.Fatalf("client %d: dial failed: %v", i, err)
+		}
+		client.SetDeadline(time.Now().Add(5 * time.Second))
+
+		msg := fmt.Sprintf("ping-%d", i)
+		if _, err := client.Write([]byte(msg)); err != nil {
+			t.Fatalf("client %d: write failed: %v", i, err)
+		}
+		buf := make([]byte, len(msg))
+		if _, err := io.ReadFull(client, buf); err != nil {
+			t.Fatalf("client %d: read failed: %v", i, err)
+		}
+		if got := string(buf); got != msg {
+			t.Fatalf("client %d: expected %q, got %q", i, msg, got)
+		}
+		client.Close()
+
+		// The backend connection only goes back to the pool once both copy
+		// directions have finished, which happens after the client socket is
+		// closed. Wait for the handler to drain before opening the next
+		// client, otherwise this test would race the pool rather than measure
+		// it.
+		waitForActiveConnections(t, proxy, 0)
+	}
+
+	stats := b.PoolStats()
+	if got := accepted.Load(); got != 1 {
+		t.Errorf("backend accepted %d connections for %d clients, want 1 (pool not reused)", got, clients)
+	}
+	if stats.Hits != clients-1 {
+		t.Errorf("pool hits = %d, want %d (stats: %+v)", stats.Hits, clients-1, stats)
+	}
+	if stats.Misses != 1 {
+		t.Errorf("pool misses = %d, want 1 (stats: %+v)", stats.Misses, stats)
+	}
+}
+
+// TestTCPProxyForwardsHalfCloseWhenPoolingDisabled guards the other side of
+// the trade-off. Suppressing the FIN is only correct for connections the pool
+// owns; with pooling off, a backend that delimits a request by reading to EOF
+// must still see that EOF.
+func TestTCPProxyForwardsHalfCloseWhenPoolingDisabled(t *testing.T) {
+	// Backend reads until EOF, then replies. It cannot reply at all unless the
+	// client's FIN reaches it.
+	bListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to start backend: %v", err)
+	}
+	defer bListener.Close()
+
+	go func() {
+		for {
+			conn, err := bListener.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				c.SetDeadline(time.Now().Add(5 * time.Second))
+				req, err := io.ReadAll(c) // returns only once the peer sends FIN
+				if err != nil {
+					return
+				}
+				fmt.Fprintf(c, "read %d bytes", len(req))
+			}(conn)
+		}
+	}()
+
+	lb := buildRoundRobin(bListener) // pooling not enabled
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	proxy := NewTCPProxy(":0", lb, logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := proxy.Start(ctx); err != nil {
+		t.Fatalf("failed to start proxy: %v", err)
+	}
+	<-proxy.Ready()
+	defer proxy.Stop(context.Background())
+
+	client, err := net.Dial("tcp", proxy.Addr())
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+	client.SetDeadline(time.Now().Add(5 * time.Second))
+
+	if _, err := client.Write([]byte("request-body")); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := client.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatalf("CloseWrite failed: %v", err)
+	}
+
+	resp, err := io.ReadAll(client)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if want := "read 12 bytes"; string(resp) != want {
+		t.Errorf("got %q, want %q (client FIN did not reach the backend)", resp, want)
+	}
+}
+
+// waitForActiveConnections blocks until the proxy reports the wanted number of
+// in-flight connections, or fails the test.
+func waitForActiveConnections(t *testing.T, p *TCPProxy, want int64) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if p.ActiveConnections() == want {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for active connections to reach %d (currently %d)", want, p.ActiveConnections())
+}
+
+// startCountingEchoServer echoes whatever it receives and records how many
+// distinct TCP connections it accepted, which is what proves reuse.
+func startCountingEchoServer(t *testing.T, accepted *atomic.Int64) net.Listener {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to start echo server: %v", err)
+	}
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			accepted.Add(1)
+			go func(c net.Conn) {
+				defer c.Close()
+				buf := make([]byte, 4096)
+				for {
+					n, err := c.Read(buf)
+					if err != nil {
+						return
+					}
+					if _, err := c.Write(buf[:n]); err != nil {
+						return
+					}
+				}
+			}(conn)
+		}
+	}()
+
+	return listener
 }
 
 // TestTCPProxyActiveConnections verifies connection counting is accurate.

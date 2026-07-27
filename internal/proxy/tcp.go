@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -428,6 +429,12 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	}
 
 	// Step 3: Set up bidirectional copy with byte counting
+	//
+	// Whether the client's FIN gets forwarded to the backend depends on who
+	// owns the backend socket after this connection ends. See reusableBackend
+	// for why the two cannot both be true.
+	reusable := reusableBackend(backendConn)
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -436,25 +443,50 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	// Client → Backend
 	go func() {
 		defer wg.Done()
-		n, err := p.copyWithHalfCloseAndCount(backendConn, clientConn, "client→backend")
+		n, err := p.copyBuffered(backendConn, clientConn)
 		bytesSent.Store(n)
 		if err != nil {
 			p.logger.Debug("error copying client to backend", "error", err)
 		}
+
+		if reusable {
+			// The client is finished, but the backend socket is going back
+			// into the pool, so it must not be half-closed. The other
+			// direction is parked in a blocking Read on that same socket and
+			// nothing will ever wake it, since suppressing the FIN means the
+			// backend has no reason to respond or hang up. An already-elapsed
+			// read deadline unblocks that Read immediately and, unlike
+			// CloseWrite or Close, leaves the connection intact. The deadline
+			// is cleared below, before Close() hands it to the pool.
+			_ = backendConn.SetReadDeadline(time.Now())
+			return
+		}
+		halfClose(backendConn)
 	}()
 
 	// Backend → Client
 	go func() {
 		defer wg.Done()
-		n, err := p.copyWithHalfCloseAndCount(clientConn, backendConn, "backend→client")
+		n, err := p.copyBuffered(clientConn, backendConn)
 		bytesReceived.Store(n)
-		if err != nil {
+		// A deadline error here is the wake-up above, not a fault.
+		if err != nil && !(reusable && errors.Is(err, os.ErrDeadlineExceeded)) {
 			p.logger.Debug("error copying backend to client", "error", err)
 		}
+		// The client connection is never pooled, so it always gets the FIN.
+		halfClose(clientConn)
 	}()
 
 	// Step 4: Wait for both directions to complete
 	wg.Wait()
+
+	if reusable {
+		// Both copies are done, so nothing can be mid-read. Clearing the
+		// deadline restores the connection to a clean state for its next
+		// checkout; the pool's own liveness probe sets and clears deadlines of
+		// its own, and would misread a stale one as an instant timeout.
+		_ = backendConn.SetReadDeadline(time.Time{})
+	}
 
 	// Step 5: Record request metrics
 	if p.metricsCollector != nil {
@@ -472,14 +504,15 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	)
 }
 
-// copyWithHalfCloseAndCount copies data and returns byte count.
-// copyWithHalfCloseAndCount copies data between connections using pooled buffers.
+// copyBuffered copies src into dst using a pooled 32KB buffer, reducing
+// allocations on the hot path.
 //
-// Uses sync.Pool to reuse 32KB buffers, reducing allocations on the hot path.
-// After copy completes, sends FIN via CloseWrite for graceful half-close.
+// It deliberately does not touch the connections' close state. Who gets a FIN
+// and when is a per-direction decision made by the caller, which is the only
+// place that knows whether the destination is a pooled backend socket.
 //
 // Returns bytes copied and any error (EOF/closed errors are normalized to nil).
-func (p *TCPProxy) copyWithHalfCloseAndCount(dst, src net.Conn, direction string) (int64, error) {
+func (p *TCPProxy) copyBuffered(dst, src net.Conn) (int64, error) {
 	// Get buffer from pool - New() guarantees non-nil *[]byte
 	bufPtr := p.bufPool.Get().(*[]byte)
 	buf := *bufPtr
@@ -492,17 +525,39 @@ func (p *TCPProxy) copyWithHalfCloseAndCount(dst, src net.Conn, direction string
 	// Copy data using pooled buffer
 	n, err := io.CopyBuffer(dst, src, buf)
 
-	// Half-close: signal end of write stream to peer
-	// This is necessary for protocols that expect EOF/FIN after request data
-	if cw, ok := dst.(interface{ CloseWrite() error }); ok {
-		cw.CloseWrite()
-	}
-
 	// Normalize expected completion errors to nil
 	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 		return n, nil
 	}
 	return n, err
+}
+
+// halfClose sends FIN to the peer, signalling that no more data will be
+// written while leaving the read side open. Protocols that delimit a request
+// by reading to EOF depend on it.
+func halfClose(c net.Conn) {
+	if cw, ok := c.(interface{ CloseWrite() error }); ok {
+		_ = cw.CloseWrite()
+	}
+}
+
+// reusableBackend reports whether closing this backend connection returns it
+// to an idle pool instead of tearing it down.
+//
+// The distinction matters because half-close and connection reuse are mutually
+// exclusive: a socket that has sent FIN can never carry another request, so the
+// pool refuses to keep it. Forwarding the client's FIN to a pooled backend
+// socket therefore empties the pool on every single connection, which is what
+// used to happen here and what pinned the L4 hit rate at exactly zero.
+//
+// Pooling is opt-in (server.tcp_pool.enabled) precisely because suppressing the
+// FIN is a protocol-visible change: a backend that waits for EOF to know the
+// request is complete will stall behind it. Backends that frame their own
+// messages, which is the only kind whose connections are safe to reuse anyway,
+// never notice.
+func reusableBackend(c net.Conn) bool {
+	p, ok := c.(interface{ Poolable() bool })
+	return ok && p.Poolable()
 }
 
 // ActiveConnections returns the number of currently active connections.
