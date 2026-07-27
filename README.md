@@ -227,7 +227,7 @@ helm install sluice ./deployments/helm/sluice \
 | Load balancing | Round robin, NGINX smooth weighted round robin, least connections |
 | Health checks | Active TCP or HTTP probes, consecutive-result thresholds to stop flapping |
 | Circuit breaking | Per backend, per layer, three states with bounded half-open probing |
-| Rate limiting | Token bucket, lazy refill (no ticker goroutine), shared across both listeners |
+| Rate limiting | Token bucket, lazy refill (no ticker goroutine). One process-wide bucket — a backend budget, with no per-client dimension |
 | Traffic splitting | Weighted, for canary and A/B |
 | Service discovery | TTL registration with heartbeat; expiry removes the backend from the pool |
 
@@ -368,8 +368,11 @@ docs/                 design decisions, measurements
 
 ## Limitations
 
-No TLS termination (backends are dialled over plain HTTP). Rate limiting is
-per-process, so N replicas admit N times the configured rate. WebSocket and gRPC
+No TLS termination (backends are dialled over plain HTTP). Rate limiting is one
+process-wide bucket: it caps what the backend pool is asked to absorb, but it
+has no per-client dimension, so one caller at the limit starves the rest and the
+proxy cannot tell that from legitimate load. It is also per-process, so N
+replicas admit N times the configured rate. WebSocket and gRPC
 work through L4 but not L7. Failed backend requests return 502 and are not
 retried. The JWT validator is complete and tested but not installed in the
 default middleware chain, because the config schema carries no signing key yet —

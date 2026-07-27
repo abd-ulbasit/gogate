@@ -82,6 +82,12 @@ func NewTokenBucket(rate float64, burst int) *TokenBucket {
 //
 // Returns true if allowed (token consumed), false if rate limited.
 // Non-blocking - returns immediately.
+//
+// There is deliberately no Wait: over the limit, a request is refused, never
+// queued. Queuing in a proxy converts a rate problem into a latency-and-memory
+// problem — the caller is held, its connection and buffers stay live, and the
+// backlog is bounded by nothing the operator configured. Refusing is the
+// answer the client can act on.
 func (tb *TokenBucket) Allow() bool {
 	return tb.AllowN(1)
 }
@@ -106,13 +112,6 @@ func (tb *TokenBucket) AllowN(n int) bool {
 	tb.totalDenied++
 	return false
 }
-
-// Wait blocks until a token is available or context is cancelled.
-//
-// Use when you want to queue requests instead of rejecting.
-// func (tb *TokenBucket) Wait(ctx context.Context) error {
-//     // TODO: Implement waiting with context cancellation
-// }
 
 // Stats returns rate limiter statistics.
 type Stats struct {

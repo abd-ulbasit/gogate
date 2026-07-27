@@ -241,8 +241,11 @@ func (p *HTTPProxy) cloneRequest(r *http.Request, b *backend.Backend) *http.Requ
 	outReq := r.Clone(r.Context())
 
 	// Update URL to point to backend
+	// The scheme is fixed at http: backends are dialled in plaintext. That is
+	// a stated non-goal rather than an unfinished branch — see
+	// docs/DESIGN-DECISIONS.md, "What this does not do".
 	outReq.URL = &url.URL{
-		Scheme:   "http", // TODO: Support HTTPS backends
+		Scheme:   "http",
 		Host:     b.Addr(),
 		Path:     r.URL.Path,
 		RawQuery: r.URL.RawQuery,

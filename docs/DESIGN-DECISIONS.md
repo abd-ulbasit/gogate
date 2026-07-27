@@ -142,9 +142,27 @@ goroutine forever. Lazy refill has no lifecycle to get wrong.
 Both listeners share one bucket, so the configured rate is a budget for the
 process rather than per-layer.
 
-The limitation is inherent: this is per-process. Three replicas configured at
-1000/s admit 3000/s. Distributed limiting needs shared state (Redis, or a
+**There is no per-client dimension, and that is a decision.** One bucket means
+the limiter answers "is the pool being asked for more than it can absorb?" and
+never "is *this* caller taking more than its share." A single client sending at
+the configured rate empties the bucket and everyone else collects 429s, which
+from inside the process is indistinguishable from honest saturation.
+
+The obvious fix — a bucket per remote address — is the reason it is not here.
+That map needs a cap on how many addresses it will track and an eviction path
+for stale entries, and a proxy without both has published a memory-growth
+primitive that costs an attacker one source address per entry. In front of the
+traffic this thing is built to terminate, that trades a fairness gap for a
+denial-of-service, so the gap stays and gets written down instead.
+
+The other limitation is inherent: this is per-process. Three replicas configured
+at 1000/s admit 3000/s. Distributed limiting needs shared state (Redis, or a
 token-lease protocol), and pretending otherwise would be worse than saying so.
+
+Over the limit a request is refused, never queued — there is no `Wait`. Queuing
+in a proxy converts a rate problem into a latency-and-memory problem: the caller
+is held open, its connection and buffers stay live, and the depth of the backlog
+is bounded by nothing the operator configured.
 
 ## Half-close, and the pooled-connection race it caused
 
@@ -341,6 +359,9 @@ than one that says so:
 
 - **TLS termination.** Backends are dialled over plain HTTP (`cloneRequest`
   hardcodes the scheme).
+- **Per-client rate limiting.** One process-wide bucket, no per-IP or per-token
+  dimension; it protects the backend pool, it does not apportion between
+  callers. See [Rate limiting](#rate-limiting-token-bucket-without-a-ticker).
 - **Distributed rate limiting.** Per-process only; N replicas admit N times the
   configured rate.
 - **WebSocket and gRPC over L7.** Neither survives the request/response model in
